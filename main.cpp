@@ -26,6 +26,16 @@ struct Vector2
     {
         return Vector2(x + other.x, y + other.y);
     }
+
+    Vector2 operator-(const Vector2 &other) const
+    {
+        return Vector2(x - other.x, y - other.y);
+    }
+
+    Vector2 operator-() const
+    {
+        return Vector2(-x, -y);
+    }
 };
 
 enum class Direction
@@ -181,6 +191,34 @@ struct Wall
 {
     Vector2 pos;
     bool horizontal;
+    Wall() : Wall(Vector2(0, 0), true) {}
+    Wall(Vector2 pos, bool horizontal)
+    {
+        this->pos = pos;
+        this->horizontal = horizontal;
+    }
+};
+
+struct Move
+{
+    int score;
+    bool is_wall;
+    Wall wall;
+    int id;
+    Vector2 direction;
+    Move() : Move(0, Vector2(0, 0)) {}
+    Move(int id, Vector2 direction)
+    {
+        this->is_wall = false;
+        this->id = id;
+        this->direction = direction;
+    }
+    Move(int id, Wall wall)
+    {
+        this->is_wall = true;
+        this->id = id;
+        this->wall = wall;
+    }
 };
 
 struct Player
@@ -213,14 +251,22 @@ public:
         player_count = clamp(player_count, 2, 3);
         this->player_count = player_count;
         this->players = new Player[player_count];
-        this->players[0] = Player(Direction::UP);
-        this->players[1] = Player(Direction::DOWN);
+        this->players[0] = Player(Direction::RIGHT);
+        this->players[1] = Player(Direction::LEFT);
         if (player_count == 3)
-            this->players[2] = Player(Direction::LEFT);
+            this->players[2] = Player(Direction::DOWN);
     }
     ~Board()
     {
         delete grid;
+    }
+
+    void move_player(int id, Vector2 direction)
+    {
+        if (id < 0 || id >= player_count)
+            return;
+
+        players[id].pos = players[id].pos + direction;
     }
 
     void update_player(int id, Vector2 pos, int walls_left)
@@ -275,7 +321,9 @@ public:
         if (is_overlaping(wall))
             return false;
 
-        // Later: check if wall blocks a player
+        // Make sure there is a path for each player
+        if (wall_count >= min(width, height))
+            return can_finish();
 
         return true;
     }
@@ -322,6 +370,107 @@ public:
         wall_count--;
     }
 
+    void do_move(Move move)
+    {
+        if (move.is_wall)
+        {
+            players[move.id].walls_left--;
+            place_wall(move.wall);
+        }
+        else
+        {
+            move_player(move.id, move.direction);
+        }
+    }
+
+    void undo_move(Move move)
+    {
+        if (move.is_wall)
+        {
+            players[move.id].walls_left++;
+            remove_wall(move.wall);
+        }
+        else
+        {
+            move_player(move.id, -move.direction);
+        }
+    }
+
+    vector<Wall> get_possible_walls()
+    {
+        vector<Wall> walls;
+
+        // Horizontal walls
+        for (int y = 1; y < height; y++)
+        {
+            for (int x = 0; x < width - 1; x++)
+            {
+                Wall wall = Wall(Vector2(x, y), true);
+                if (can_place_wall(wall))
+                    walls.push_back(wall);
+            }
+        }
+
+        // Vertical walls
+        for (int y = 0; y < height - 1; y++)
+        {
+            for (int x = 1; x < width; x++)
+            {
+                Wall wall = Wall(Vector2(x, y), false);
+                if (can_place_wall(wall))
+                    walls.push_back(wall);
+            }
+        }
+
+        return walls;
+    }
+
+    vector<Vector2> get_possible_directions(int id)
+    {
+        vector<Vector2> directions;
+        Vector2 pos = players[id].pos;
+
+        Vector2 up = pos + Vector2(0, -1);
+        if (grid->is_inside(up) && !grid->is_blocked(pos, up))
+            directions.push_back(up);
+
+        Vector2 down = pos + Vector2(0, 1);
+        if (grid->is_inside(down) && !grid->is_blocked(pos, down))
+            directions.push_back(down);
+
+        Vector2 left = pos + Vector2(-1, 0);
+        if (grid->is_inside(left) && !grid->is_blocked(pos, left))
+            directions.push_back(left);
+
+        Vector2 right = pos + Vector2(1, 0);
+        if (grid->is_inside(right) && !grid->is_blocked(pos, right))
+            directions.push_back(right);
+
+        return directions;
+    }
+
+    vector<Move> get_possible_moves(int id)
+    {
+        vector<Move> moves;
+
+        // Add possible directions
+        vector<Vector2> directions = get_possible_directions(id);
+        for (Vector2 direction : directions)
+            moves.push_back(Move(id, direction));
+
+        // Add possible walls
+        vector<Wall> walls = get_possible_walls();
+        for (Wall wall : walls)
+            moves.push_back(Move(id, wall));
+
+        return moves;
+    }
+
+    int get_distance(int id)
+    {
+        return grid->get_distance(players[id].pos, players[id].end_direction);
+    }
+
 private:
     int width;
     int height;
@@ -336,18 +485,21 @@ int main()
     // start message
     cout << "start" << endl;
     // make a grid speed test
-    Grid grid(9, 9);
+    Board board(9, 9, 2);
 
-    grid.set_blocked(Vector2(3, 0), Vector2(4, 0), true);
-    grid.set_blocked(Vector2(3, 1), Vector2(4, 1), true);
-    grid.set_blocked(Vector2(3, 2), Vector2(4, 2), true);
+    board.place_wall(Wall(Vector2(3, 0), false));
+    board.place_wall(Wall(Vector2(3, 2), false));
+
+    board.place_wall(Wall(Vector2(5, 0), false));
+    board.remove_wall(Wall(Vector2(5, 0), false));
 
     // time test
+    board.update_player(0, Vector2(0, 0), 0);
     // take time
     auto start = chrono::high_resolution_clock::now();
-    for (int i = 0; i < 1000000; i++)
+    for (int i = 0; i < 1; i++)
     {
-        grid.get_distance(Vector2(0, 0), Direction::RIGHT);
+        board.get_distance(0);
     }
     // take time
     auto end = chrono::high_resolution_clock::now();
@@ -359,7 +511,23 @@ int main()
     cout << "Time taken by function: " << chrono::duration_cast<chrono::seconds>(end - start).count() << " seconds" << endl;
 
     // distance test
-    cout << grid.get_distance(Vector2(0, 0), Direction::RIGHT) << endl;
+    cout << board.get_distance(0) << endl;
+
+    vector<Move> moves = board.get_possible_moves(0);
+    for (int i = 0; i < moves.size(); i++)
+    {
+        if (moves[i].is_wall)
+        {
+            if (moves[i].wall.horizontal)
+                cout << "Horizontal wall " << moves[i].wall.pos.x << " " << moves[i].wall.pos.y << endl;
+            else
+                cout << "Vertical wall " << moves[i].wall.pos.x << " " << moves[i].wall.pos.y << endl;
+        }
+        else
+            cout << "Move " << moves[i].direction.x << " " << moves[i].direction.y << endl;
+    }
+
+    // end message
 
     cout << "end" << endl;
 }
