@@ -43,7 +43,7 @@ public:
     {
         this->width = width;
         this->height = height;
-        this->blocked_paths = new bool[width * height * width * height]{false};
+        this->blocked_paths = new int[width * height * width * height]{0};
         this->visited = new int[width * height];
         this->queue = new Vector2[width * height];
     }
@@ -67,10 +67,23 @@ public:
     bool is_blocked(Vector2 pos1, Vector2 pos2)
     {
         // will crash if pos1 or pos2 are outside the grid
+        return blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height + pos2.y * width * width * height] != 0;
+    }
+
+    int get_blocked(Vector2 pos1, Vector2 pos2)
+    {
+        // will crash if pos1 or pos2 are outside the grid
         return blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height + pos2.y * width * width * height];
     }
 
     void set_blocked(Vector2 pos1, Vector2 pos2, bool blocked)
+    {
+        // Exploit symmetry
+        blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height + pos2.y * width * width * height] = blocked;
+        blocked_paths[pos2.x + pos2.y * width + pos1.x * width * height + pos1.y * width * width * height] = blocked;
+    }
+
+    void set_blocked(Vector2 pos1, Vector2 pos2, int blocked)
     {
         // Exploit symmetry
         blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height + pos2.y * width * width * height] = blocked;
@@ -157,17 +170,166 @@ public:
 private:
     int width;
     int height;
-    bool *blocked_paths;
+    int *blocked_paths;
     int *visited;
     Vector2 *queue;
     int write_index;
     int read_index;
 };
 
-/**
- * Auto-generated code below aims at helping you parse
- * the standard input according to the problem statement.
- **/
+struct Wall
+{
+    Vector2 pos;
+    bool horizontal;
+};
+
+struct Player
+{
+    bool is_alive;
+    Vector2 pos;
+    int walls_left;
+    Direction end_direction;
+
+    Player() : Player(Direction::UP) {}
+    Player(Direction end_direction)
+    {
+        this->is_alive = true;
+        this->pos = Vector2(0, 0);
+        this->walls_left = 0;
+        this->end_direction = end_direction;
+    }
+};
+
+class Board
+{
+public:
+    Board(int width, int height, int player_count)
+    {
+
+        this->width = width;
+        this->height = height;
+        this->grid = new Grid(width, height);
+
+        player_count = clamp(player_count, 2, 3);
+        this->player_count = player_count;
+        this->players = new Player[player_count];
+        this->players[0] = Player(Direction::UP);
+        this->players[1] = Player(Direction::DOWN);
+        if (player_count == 3)
+            this->players[2] = Player(Direction::LEFT);
+    }
+    ~Board()
+    {
+        delete grid;
+    }
+
+    void update_player(int id, Vector2 pos, int walls_left)
+    {
+        if (id < 0 || id >= player_count)
+            return;
+
+        if (pos.x == -1 || pos.y == -1)
+            players[id].is_alive = false;
+
+        players[id].pos = pos;
+        players[id].walls_left = walls_left;
+    }
+
+    bool can_finish()
+    {
+        for (int i = 0; i < player_count; i++)
+        {
+            if (players[i].is_alive && grid->get_distance(players[i].pos, players[i].end_direction) == UNREACHABLE)
+                return false;
+        }
+
+        return true;
+    }
+
+    bool is_overlaping(Wall wall)
+    {
+        // check if wall overlaps with another wall
+        if (wall.horizontal)
+        {
+            if (grid->is_blocked(wall.pos, wall.pos + Vector2(0, -1)) || grid->is_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1)))
+                return true;
+
+            if (grid->get_blocked(wall.pos, wall.pos + Vector2(1, 0)) == grid->get_blocked(wall.pos + Vector2(0, -1), wall.pos + Vector2(1, -1)) && grid->is_blocked(wall.pos, wall.pos + Vector2(1, 0)))
+                return true;
+        }
+        else
+        {
+            if (grid->is_blocked(wall.pos, wall.pos + Vector2(-1, 0)) || grid->is_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1)))
+                return true;
+
+            if (grid->get_blocked(wall.pos, wall.pos + Vector2(0, 1)) == grid->get_blocked(wall.pos + Vector2(-1, 0), wall.pos + Vector2(-1, 1)) && grid->is_blocked(wall.pos, wall.pos + Vector2(0, 1)))
+                return true;
+        }
+
+        return false;
+    }
+
+    bool can_place_wall(Wall wall)
+    {
+        // Check if wall is overlaping
+        if (is_overlaping(wall))
+            return false;
+
+        // Later: check if wall blocks a player
+
+        return true;
+    }
+
+    void place_wall(Wall wall)
+    {
+        // Check if wall is overlaping
+        if (is_overlaping(wall))
+            return;
+
+        wall_count++;
+
+        // Place wall
+        if (wall.horizontal)
+        {
+            grid->set_blocked(wall.pos, wall.pos + Vector2(0, -1), wall_count);
+            grid->set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1), wall_count);
+        }
+        else
+        {
+            grid->set_blocked(wall.pos, wall.pos + Vector2(-1, 0), wall_count);
+            grid->set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1), wall_count);
+        }
+    }
+
+    void remove_wall(Wall wall)
+    {
+        // Check if wall is overlaping
+        if (is_overlaping(wall))
+            return;
+
+        // Place wall
+        if (wall.horizontal)
+        {
+            grid->set_blocked(wall.pos, wall.pos + Vector2(0, -1), false);
+            grid->set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1), false);
+        }
+        else
+        {
+            grid->set_blocked(wall.pos, wall.pos + Vector2(-1, 0), false);
+            grid->set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1), false);
+        }
+
+        wall_count--;
+    }
+
+private:
+    int width;
+    int height;
+    int player_count;
+    Grid *grid;
+    Player *players;
+    int wall_count;
+};
 
 int main()
 {
