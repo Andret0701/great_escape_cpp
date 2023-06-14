@@ -7,6 +7,8 @@
 
 #define UNREACHABLE -1
 #define UNVISITED -1
+#define WON 999999
+#define LOST -999999
 
 using namespace std;
 
@@ -292,6 +294,24 @@ public:
         return true;
     }
 
+    bool is_finished()
+    {
+        for (int i = 0; i < player_count; i++)
+        {
+            if (players[i].is_alive && grid->get_distance(players[i].pos, players[i].end_direction) == 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    bool has_won(int id)
+    {
+        if (is_finished())
+            return false;
+        return players[id].is_alive && grid->get_distance(players[id].pos, players[id].end_direction) == 0;
+    }
+
     bool is_overlaping(Wall wall)
     {
         // check if wall overlaps with another wall
@@ -322,8 +342,14 @@ public:
             return false;
 
         // Make sure there is a path for each player
-        if (wall_count >= min(width, height))
-            return can_finish();
+        int min_walls_needed = min(width / 2, height / 2);
+        if (wall_count >= min_walls_needed)
+        {
+            place_wall(wall);
+            bool allowed = can_finish();
+            remove_wall(wall);
+            return allowed;
+        }
 
         return true;
     }
@@ -351,10 +377,6 @@ public:
 
     void remove_wall(Wall wall)
     {
-        // Check if wall is overlaping
-        if (is_overlaping(wall))
-            return;
-
         // Place wall
         if (wall.horizontal)
         {
@@ -430,20 +452,20 @@ public:
         vector<Vector2> directions;
         Vector2 pos = players[id].pos;
 
-        Vector2 up = pos + Vector2(0, -1);
-        if (grid->is_inside(up) && !grid->is_blocked(pos, up))
+        Vector2 up = Vector2(0, -1);
+        if (grid->is_inside(pos + up) && !grid->is_blocked(pos, pos + up))
             directions.push_back(up);
 
-        Vector2 down = pos + Vector2(0, 1);
-        if (grid->is_inside(down) && !grid->is_blocked(pos, down))
+        Vector2 down = Vector2(0, 1);
+        if (grid->is_inside(pos + down) && !grid->is_blocked(pos, pos + down))
             directions.push_back(down);
 
-        Vector2 left = pos + Vector2(-1, 0);
-        if (grid->is_inside(left) && !grid->is_blocked(pos, left))
+        Vector2 left = Vector2(-1, 0);
+        if (grid->is_inside(pos + left) && !grid->is_blocked(pos, pos + left))
             directions.push_back(left);
 
-        Vector2 right = pos + Vector2(1, 0);
-        if (grid->is_inside(right) && !grid->is_blocked(pos, right))
+        Vector2 right = Vector2(1, 0);
+        if (grid->is_inside(pos + right) && !grid->is_blocked(pos, pos + right))
             directions.push_back(right);
 
         return directions;
@@ -455,11 +477,16 @@ public:
 
         // Add possible directions
         vector<Vector2> directions = get_possible_directions(id);
+        // cerr << "directions: " << directions.size() << endl;
         for (Vector2 direction : directions)
             moves.push_back(Move(id, direction));
 
+        if (players[id].walls_left == 0)
+            return moves;
+
         // Add possible walls
         vector<Wall> walls = get_possible_walls();
+        // cerr << "walls: " << walls.size() << endl;
         for (Wall wall : walls)
             moves.push_back(Move(id, wall));
 
@@ -471,6 +498,161 @@ public:
         return grid->get_distance(players[id].pos, players[id].end_direction);
     }
 
+    int get_next_id(int id)
+    {
+        id = (id + 1) % player_count;
+        if (!players[id].is_alive)
+            return get_next_id(id);
+        return id;
+    }
+
+    int score_move(int id, Move move)
+    {
+        do_move(move);
+
+        int distance = get_distance(id);
+
+        if (distance == 0)
+        {
+            undo_move(move);
+            return WON;
+        }
+
+        int shortest_distance = width * height + 1;
+        int enemy_walls = 0;
+        for (int i = 0; i < player_count; i++)
+        {
+            if (i != id && players[i].is_alive)
+            {
+                int other_distance = get_distance(i);
+                // cout << "other_distance: " << other_distance << endl;
+                if (other_distance < shortest_distance)
+                    shortest_distance = other_distance;
+
+                enemy_walls += players[i].walls_left;
+            }
+        }
+
+        if (shortest_distance == 0)
+        {
+            undo_move(move);
+            return LOST;
+        }
+
+        int score = shortest_distance - distance;
+        score *= 100;
+
+        score += players[id].walls_left - enemy_walls;
+
+        undo_move(move);
+        return score;
+    }
+
+    int score_move(int depth, int breadth, int alpha, int beta, int id, Move move)
+    {
+        // print out move
+        /*if (!move.is_wall)
+        {
+            cerr << "Move " << move.direction.x << " " << move.direction.y;
+        }
+        else
+        {
+            cerr << "Wall " << move.wall.pos.x << " " << move.wall.pos.y << " " << (move.wall.horizontal ? "H" : "V");
+        }
+        cerr << " "
+             << "depth:" << depth << " breadth: " << breadth << " alpha: " << alpha << " beta: " << beta << " id: " << id << " move id: " << move.id << endl;
+*/
+        // cout << "depth: " << depth << " breadth: " << breadth << " alpha: " << alpha << " beta: " << beta << " id: " << id << " move: " << move.is_wall << endl;
+        if (depth == 0)
+            return score_move(id, move);
+
+        if (is_finished())
+        {
+            if (has_won(id))
+                return WON;
+            else
+                return LOST;
+        }
+
+        do_move(move);
+        int next_id = get_next_id(move.id);
+        vector<Move> moves = get_possible_moves(next_id);
+        // cerr << "moves: " << moves.size() << endl;
+        if (id == next_id)
+        {
+            int best_score = LOST;
+            for (Move move : moves)
+            {
+                int score = score_move(depth - 1, breadth, alpha, beta, id, move);
+                best_score = max(best_score, score);
+
+                alpha = max(alpha, best_score);
+                if (beta <= alpha)
+                    break;
+            }
+
+            undo_move(move);
+            return best_score;
+        }
+        else
+        {
+            int best_score = WON;
+            for (Move move : moves)
+            {
+                int score = score_move(depth - 1, breadth, alpha, beta, id, move);
+                best_score = min(best_score, score);
+
+                beta = min(beta, best_score);
+                if (beta <= alpha)
+                    break;
+            }
+
+            undo_move(move);
+            return best_score;
+        }
+
+        undo_move(move);
+        return score_move(id, move);
+    }
+
+    Move get_best_move(int depth, int breadth, int id)
+    {
+        vector<Move> moves = get_possible_moves(id);
+
+        int best_score = LOST;
+        Move best_move = Move(id, Vector2(0, 0));
+        for (Move move : moves)
+        {
+            int score = score_move(depth, breadth, LOST, WON, id, move);
+            if (score > best_score)
+            {
+                best_score = score;
+                best_move = move;
+            }
+        }
+
+        return best_move;
+    }
+
+    void print_move(Move move)
+    {
+        if (move.is_wall)
+        {
+            cout << move.wall.pos.x << " " << move.wall.pos.y << " " << (move.wall.horizontal ? "H" : "V") << endl;
+        }
+        else
+        {
+            if (move.direction.x == 0 && move.direction.y == -1)
+                cout << "UP" << endl;
+            else if (move.direction.x == 0 && move.direction.y == 1)
+                cout << "DOWN" << endl;
+            else if (move.direction.x == -1 && move.direction.y == 0)
+                cout << "LEFT" << endl;
+            else if (move.direction.x == 1 && move.direction.y == 0)
+                cout << "RIGHT" << endl;
+        }
+    }
+
 private:
     int width;
     int height;
@@ -480,54 +662,63 @@ private:
     int wall_count;
 };
 
+void coding_game_main()
+{
+    int w;            // width of the board
+    int h;            // height of the board
+    int player_count; // number of players (2 or 3)
+    int my_id;        // id of my player (0 = 1st player, 1 = 2nd player, ...)
+    cin >> w >> h >> player_count >> my_id;
+    cin.ignore();
+
+    Board board = Board(w, h, player_count);
+
+    // game loop
+    while (1)
+    {
+        for (int i = 0; i < player_count; i++)
+        {
+            int x;          // x-coordinate of the player
+            int y;          // y-coordinate of the player
+            int walls_left; // number of walls available for the player
+            cin >> x >> y >> walls_left;
+            cin.ignore();
+            board.update_player(i, Vector2(x, y), walls_left);
+        }
+
+        int wall_count; // number of walls on the board
+        cin >> wall_count;
+        cin.ignore();
+        for (int i = 0; i < wall_count; i++)
+        {
+            int wall_x;              // x-coordinate of the wall
+            int wall_y;              // y-coordinate of the wall
+            string wall_orientation; // wall orientation ('H' or 'V')
+            cin >> wall_x >> wall_y >> wall_orientation;
+            cin.ignore();
+            board.place_wall(Wall(Vector2(wall_x, wall_y), wall_orientation == "H"));
+        }
+
+        // Write an action using cout. DON'T FORGET THE "<< endl"
+        // To debug: cerr << "Debug messages..." << endl;
+
+        // action: LEFT, RIGHT, UP, DOWN or "putX putY putOrientation" to place a wall
+        Move move = board.get_best_move(1, 1, my_id);
+        board.print_move(move);
+    }
+}
+
+void test_main()
+{
+    Board board = Board(9, 9, 2);
+    board.update_player(0, Vector2(0, 0), 10);
+    board.update_player(1, Vector2(8, 8), 10);
+
+    Move move = board.get_best_move(2, 1, 0);
+    board.print_move(move);
+}
+
 int main()
 {
-    // start message
-    cout << "start" << endl;
-    // make a grid speed test
-    Board board(9, 9, 2);
-
-    board.place_wall(Wall(Vector2(3, 0), false));
-    board.place_wall(Wall(Vector2(3, 2), false));
-
-    board.place_wall(Wall(Vector2(5, 0), false));
-    board.remove_wall(Wall(Vector2(5, 0), false));
-
-    // time test
-    board.update_player(0, Vector2(0, 0), 0);
-    // take time
-    auto start = chrono::high_resolution_clock::now();
-    for (int i = 0; i < 1; i++)
-    {
-        board.get_distance(0);
-    }
-    // take time
-    auto end = chrono::high_resolution_clock::now();
-    // print time
-    cout << "Time taken by function: "
-         << chrono::duration_cast<chrono::nanoseconds>(end - start).count() / 1000000
-         << " milliseconds" << endl;
-    // and in seconds
-    cout << "Time taken by function: " << chrono::duration_cast<chrono::seconds>(end - start).count() << " seconds" << endl;
-
-    // distance test
-    cout << board.get_distance(0) << endl;
-
-    vector<Move> moves = board.get_possible_moves(0);
-    for (int i = 0; i < moves.size(); i++)
-    {
-        if (moves[i].is_wall)
-        {
-            if (moves[i].wall.horizontal)
-                cout << "Horizontal wall " << moves[i].wall.pos.x << " " << moves[i].wall.pos.y << endl;
-            else
-                cout << "Vertical wall " << moves[i].wall.pos.x << " " << moves[i].wall.pos.y << endl;
-        }
-        else
-            cout << "Move " << moves[i].direction.x << " " << moves[i].direction.y << endl;
-    }
-
-    // end message
-
-    cout << "end" << endl;
+    test_main();
 }
