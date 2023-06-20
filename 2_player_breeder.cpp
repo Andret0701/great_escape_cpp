@@ -5,11 +5,12 @@
 #include <deque>
 #include <chrono>
 #include <queue>
+#include <random>
 
 #define UNREACHABLE -1
 #define UNVISITED -1
-#define WON 999999
-#define LOST -999999
+#define WON 99999999
+#define LOST -99999999
 
 using namespace std;
 
@@ -852,11 +853,46 @@ public:
     // lost is best
     MinMovesArray *get_minimizing_moves(int my_id, int current_id, int breadth)
     {
-        if(players[current_id].walls_left==0)
+        if (players[current_id].walls_left == 0)
         {
-            
-        }
+            MinMovesArray *moves = new MinMovesArray(4);
+            Vector2 pos = players[current_id].pos;
 
+            Vector2 up = Vector2(0, -1);
+            if (grid->is_inside(pos + up) && !grid->is_blocked(pos, pos + up))
+            {
+                Move move = Move(current_id, up);
+                move.score = score_move(my_id, move);
+                moves->push(move);
+            }
+
+            Vector2 down = Vector2(0, 1);
+            if (grid->is_inside(pos + down) && !grid->is_blocked(pos, pos + down))
+            {
+                Move move = Move(current_id, down);
+                move.score = score_move(my_id, move);
+                moves->push(move);
+            }
+
+            Vector2 left = Vector2(-1, 0);
+            if (grid->is_inside(pos + left) && !grid->is_blocked(pos, pos + left))
+            {
+                Move move = Move(current_id, left);
+                move.score = score_move(my_id, move);
+                moves->push(move);
+            }
+
+            Vector2 right = Vector2(1, 0);
+            if (grid->is_inside(pos + right) && !grid->is_blocked(pos, pos + right))
+            {
+                Move move = Move(current_id, right);
+                move.score = score_move(my_id, move);
+                moves->push(move);
+            }
+
+            moves->sort();
+            return moves;
+        }
 
         Move direction = get_best_direction(current_id);
         direction.score = score_move(my_id, direction);
@@ -878,7 +914,7 @@ public:
                 for (int x = 0; x < width - 1; x++)
                 {
                     Wall wall = Wall(Vector2(x, y), true);
-                    if (!is_overlaping(wall) && is_wall_distance(wall, 100)) // 6))
+                    if (!is_overlaping(wall) && is_wall_distance(wall, 3)) // 6))
                     {
                         Move wall_move = Move(current_id, wall);
                         wall_move.score = score_move(my_id, wall_move);
@@ -900,7 +936,7 @@ public:
                 for (int x = 1; x < width; x++)
                 {
                     Wall wall = Wall(Vector2(x, y), false);
-                    if (!is_overlaping(wall) && is_wall_distance(wall, 100)) // 6))
+                    if (!is_overlaping(wall) && is_wall_distance(wall, 3)) // 6))
                     {
                         Move wall_move = Move(current_id, wall);
                         wall_move.score = score_move(my_id, wall_move);
@@ -924,6 +960,47 @@ public:
     MaxMovesArray *get_maximizing_moves(int my_id, int current_id, int breadth)
     {
 
+        if (players[current_id].walls_left == 0)
+        {
+            MaxMovesArray *moves = new MaxMovesArray(4);
+            Vector2 pos = players[current_id].pos;
+
+            Vector2 up = Vector2(0, -1);
+            if (grid->is_inside(pos + up) && !grid->is_blocked(pos, pos + up))
+            {
+                Move move = Move(current_id, up);
+                move.score = score_move(my_id, move);
+                moves->push(move);
+            }
+
+            Vector2 down = Vector2(0, 1);
+            if (grid->is_inside(pos + down) && !grid->is_blocked(pos, pos + down))
+            {
+                Move move = Move(current_id, down);
+                move.score = score_move(my_id, move);
+                moves->push(move);
+            }
+
+            Vector2 left = Vector2(-1, 0);
+            if (grid->is_inside(pos + left) && !grid->is_blocked(pos, pos + left))
+            {
+                Move move = Move(current_id, left);
+                move.score = score_move(my_id, move);
+                moves->push(move);
+            }
+
+            Vector2 right = Vector2(1, 0);
+            if (grid->is_inside(pos + right) && !grid->is_blocked(pos, pos + right))
+            {
+                Move move = Move(current_id, right);
+                move.score = score_move(my_id, move);
+                moves->push(move);
+            }
+
+            moves->sort();
+            return moves;
+        }
+
         Move direction = get_best_direction(current_id);
         direction.score = score_move(my_id, direction);
         if (direction.score == WON) // || temp_wall_count >= 4)
@@ -944,7 +1021,7 @@ public:
                 for (int x = 0; x < width - 1; x++)
                 {
                     Wall wall = Wall(Vector2(x, y), true);
-                    if (!is_overlaping(wall) && is_wall_distance(wall, 100)) // 6))
+                    if (!is_overlaping(wall) && is_wall_distance(wall, 3)) // 6))
                     {
                         Move wall_move = Move(current_id, wall);
                         wall_move.score = score_move(my_id, wall_move);
@@ -966,7 +1043,7 @@ public:
                 for (int x = 1; x < width; x++)
                 {
                     Wall wall = Wall(Vector2(x, y), false);
-                    if (!is_overlaping(wall) && is_wall_distance(wall, 100)) // 6))
+                    if (!is_overlaping(wall) && is_wall_distance(wall, 3)) // 6))
                     {
                         Move wall_move = Move(current_id, wall);
                         wall_move.score = score_move(my_id, wall_move);
@@ -1065,20 +1142,23 @@ public:
             return LOST;
         }
 
-        int distance_score = other_distance - distance;
+        int distance_squared = distance * distance;
+        int other_distance_squared = other_distance * other_distance;
+        int distance_diff_squared = (other_distance - distance) * abs(distance - other_distance);
+        int walls_left_squared = walls_left * walls_left;
+        int other_walls_left_squared = other_walls_left * other_walls_left;
+        int wall_diff_squared = (walls_left - other_walls_left) * abs(walls_left - other_walls_left);
+        int temp_wall_count_squared = temp_wall_count * temp_wall_count;
+        int turn_count_squared = turn_count * turn_count;
+        int wall_count_squared = wall_count * wall_count;
 
-        int wall_score = walls_left - other_walls_left;
+        int turn_distance = turn_count * distance;
+        int turn_other_distance = turn_count * other_distance;
+        int turn_walls_left = turn_count * walls_left;
+        int turn_other_walls_left = turn_count * other_walls_left;
 
-        int distance_weight = 2;
-        int wall_weight = 3;
-
-        if (turn_count > 10)
-        {
-            //    distance_weight = 2;
-            //    wall_weight = 1;
-        }
-
-        int score = distance_score * distance_weight + wall_score * wall_weight;
+        int score =
+            -data[0] * distance + data[1] * other_distance - data[2] * distance_squared + data[3] * other_distance_squared + data[4] * distance_diff_squared + data[5] * walls_left - data[6] * other_walls_left - data[7] * walls_left_squared + data[8] * other_walls_left_squared + data[9] * wall_diff_squared + data[10] * temp_wall_count + data[11] * temp_wall_count_squared + data[12] * turn_count + data[13] * turn_count_squared + data[14] * wall_count + data[15] * wall_count_squared + data[16] * turn_distance + data[17] * turn_other_distance + data[18] * turn_walls_left + data[19] * turn_other_walls_left;
 
         undo_move(move);
         return score;
@@ -1149,8 +1229,19 @@ public:
             int distance_score = next_distance + last_distance - current_distance * 2;
             int wall_score = current_walls_left - next_distance - last_walls_left;
 
-            int distance_weight = 2;
-            int wall_weight = 2;
+            int distance_weight = data[8];
+            int wall_weight = data[9];
+
+            if (turn_count > data[10])
+            {
+                distance_weight = data[11];
+                wall_weight = data[12];
+            }
+            else if (turn_count > data[13])
+            {
+                distance_weight = data[14];
+                wall_weight = data[15];
+            }
 
             int score = distance_score * distance_weight + wall_score * wall_weight;
 
@@ -1190,8 +1281,19 @@ public:
             int distance_score = current_distance + last_distance - next_distance * 2;
             int wall_score = next_walls_left - current_distance - last_walls_left;
 
-            int distance_weight = 2;
-            int wall_weight = 2;
+            int distance_weight = data[8];
+            int wall_weight = data[9];
+
+            if (turn_count > data[10])
+            {
+                distance_weight = data[11];
+                wall_weight = data[12];
+            }
+            else if (turn_count > data[13])
+            {
+                distance_weight = data[14];
+                wall_weight = data[15];
+            }
 
             int score = distance_score * distance_weight + wall_score * wall_weight;
 
@@ -1232,8 +1334,19 @@ public:
             int distance_score = current_distance + next_distance - last_distance * 2;
             int wall_score = last_walls_left - current_distance - next_walls_left;
 
-            int distance_weight = 2;
-            int wall_weight = 2;
+            int distance_weight = data[8];
+            int wall_weight = data[9];
+
+            if (turn_count > data[10])
+            {
+                distance_weight = data[11];
+                wall_weight = data[12];
+            }
+            else if (turn_count > data[13])
+            {
+                distance_weight = data[14];
+                wall_weight = data[15];
+            }
 
             int score = distance_score * distance_weight + wall_score * wall_weight;
 
@@ -1399,8 +1512,10 @@ public:
         return Score(score_move(id, move), depth);
     }
 
-    Move get_best_move(int depth, int breadth, int id)
+    Move get_best_move(int depth, int breadth, int id, int *_data)
     {
+        data = _data;
+
         temp_wall_count = 0;
         MaxMovesArray *moves = get_maximizing_moves(id, id, breadth + 1);
 
@@ -1519,119 +1634,157 @@ private:
     int wall_count;
 
     int temp_wall_count;
+    int *data;
 };
 
-void coding_game_main()
+struct Species
 {
-    int w;            // width of the board
-    int h;            // height of the board
-    int player_count; // number of players (2 or 3)
-    int my_id;        // id of my player (0 = 1st player, 1 = 2nd player, ...)
-    cin >> w >> h >> player_count >> my_id;
-    cin.ignore();
+    int score;
+    vector<int> data;
 
-    Board board = Board(w, h, player_count);
+    Species() {}
 
-    // game loop
-    while (1)
+    Species(vector<int> _data)
     {
-        for (int i = 0; i < player_count; i++)
-        {
-            int x;          // x-coordinate of the player
-            int y;          // y-coordinate of the player
-            int walls_left; // number of walls available for the player
-            cin >> x >> y >> walls_left;
-            cin.ignore();
-            board.update_player(i, Vector2(x, y), walls_left);
-        }
-
-        int wall_count; // number of walls on the board
-        cin >> wall_count;
-        cin.ignore();
-        for (int i = 0; i < wall_count; i++)
-        {
-            int wall_x;              // x-coordinate of the wall
-            int wall_y;              // y-coordinate of the wall
-            string wall_orientation; // wall orientation ('H' or 'V')
-            cin >> wall_x >> wall_y >> wall_orientation;
-            cin.ignore();
-            board.place_wall(Wall(Vector2(wall_x, wall_y), wall_orientation == "H"));
-        }
-
-        // Write an action using cout. DON'T FORGET THE "<< endl"
-        // To debug: cerr << "Debug messages..." << endl;
-
-        // action: LEFT, RIGHT, UP, DOWN or "putX putY putOrientation" to place a wall
-        Move move = board.get_best_move(player_count == 2 ? 6 : 5, 2, my_id);
-        // board.print_board();
-        // cerr << "Move: " << move.score << endl;
-        board.print_move(move);
+        score = 0;
+        data = _data;
     }
+};
+
+void print_species(Species species)
+{
+    cerr << "Species - Score: " << species.score << " Data: ";
+    for (int i = 0; i < species.data.size(); i++)
+        cerr << species.data[i] << ", ";
+    cerr << endl;
 }
 
-void test_main()
+void get_parent(vector<Species> *species, Species *parent)
 {
-    // time in seconds
-    clock_t start = clock();
+    int total_score = 0;
+    for (int i = 0; i < species->size(); i++)
+        total_score += (*species)[i].score;
 
-    Board board = Board(9, 9, 2);
-    board.update_player(0, Vector2(0, 0), 10);
-    board.update_player(1, Vector2(8, 8), 10);
-
-    int depth_player_0 = 10;
-    int breadth_player_0 = 10;
-
-    int depth_player_1 = 6;
-    int breadth_player_1 = 5;
-
-    int id = 0;
-
-    while (!board.is_finished())
+    int target_score = rand() % total_score;
+    int current_score = 0;
+    for (int i = 0; i < species->size(); i++)
     {
-        cout << "It's player " << id << "'s turn, he is " << board.get_distance(id) << " away from the goal and the move is: " << endl;
-        Move move = board.get_best_move(id == 0 ? depth_player_0 : depth_player_1, id == 0 ? breadth_player_0 : breadth_player_1, id);
-        cout << "Move: " << move.score << endl;
-        board.print_move(move);
-        board.do_move(move);
-
-        board.print_board();
-
-        id = board.get_next_id(id);
-    }
-
-    cout << "Player " << id << " has won!" << endl;
-
-    clock_t end = clock();
-    double elapsed_secs = double(end - start) / CLOCKS_PER_SEC;
-    cout << "Time: " << elapsed_secs << endl;
-}
-
-void human_vs_machine_main()
-{
-    Board board = Board(9, 9, 2);
-    board.update_player(0, Vector2(0, 0), 10);
-    board.update_player(1, Vector2(8, 8), 10);
-}
-
-void find_best_start_moves()
-{
-    for (int i = 0; i < 9; i++)
-    {
-        for (int j = 0; j < 9; j++)
+        current_score += (*species)[i].score;
+        if (current_score >= target_score)
         {
-            Board board = Board(9, 9, 2);
-            board.update_player(0, Vector2(0, i), 10);
-            board.update_player(1, Vector2(8, j), 10);
-            Move move = board.get_best_move(8, 10, 0);
-            cerr << i << " " << j << " " << move.score << endl;
-            board.debug_move(move);
+            *parent = (*species)[i];
+            break;
         }
     }
 }
 
-int main()
+main()
 {
-    // coding_game_main();
-    // test_main();
-    find_best_start_moves();
+    int num_species = 100;
+    int num_generations = 100000;
+    int num_data = 20;
+
+    // bunch of random data
+    vector<Species> species;
+    for (int i = 0; i < num_species; i++)
+    {
+        vector<int> data;
+        for (int j = 0; j < num_data; j++)
+            data.push_back(rand() % 50);
+        species.push_back(Species(data));
+    }
+
+    // genetic algorithm
+    for (int i = 0; i < num_generations; i++)
+    {
+        cerr << "Generation: " << i << endl;
+
+        // 2 player
+        for (int j = 0; j < num_species; j++)
+        {
+            for (int k = 0; k < num_species; k++)
+            {
+                if (j == k)
+                    continue;
+                for (int l = 0; l < 1; l++)
+                {
+
+                    Species *species1 = &species[j];
+                    Species *species2 = &species[k];
+                    Board board(9, 9, 2);
+
+                    int start_y_1 = rand() % 9;
+                    int start_y_2 = rand() % 9;
+
+                    board.update_player(0, Vector2(0, start_y_1), 10);
+                    board.update_player(1, Vector2(8, start_y_2), 10);
+
+                    int num_turns = 0;
+                    int id = 1;
+                    while (!board.is_finished() && num_turns < 150)
+                    {
+                        id = board.get_next_id(id);
+                        Move move = board.get_best_move(6, 2, id, id == 0 ? &species1->data[0] : &species2->data[0]);
+                        board.do_move(move);
+                        num_turns++;
+                    }
+
+                    if (board.is_finished())
+                    {
+                        if (id == 0)
+                            species1->score++;
+                        else
+                            species2->score++;
+                    }
+                }
+            }
+        }
+
+        int total_score = 0;
+        for (int j = 0; j < num_species; j++)
+            total_score += species[j].score;
+
+        vector<Species> new_species;
+        for (int j = 0; j < num_species; j++)
+        {
+            Species parent1;
+            Species parent2;
+            get_parent(&species, &parent1);
+            get_parent(&species, &parent2);
+
+            vector<int> data;
+            for (int k = 0; k < num_data; k++)
+            {
+                if (rand() % 2 == 0)
+                    data.push_back(parent1.data[k]);
+                else
+                    data.push_back(parent2.data[k]);
+            }
+
+            // mutation
+            for (int k = 0; k < num_data; k++)
+            {
+                if (rand() % 100 < 12)
+                    data[k] += rand() % 20 - 10;
+            }
+            new_species.push_back(Species(data));
+        }
+
+        sort(species.begin(), species.end(), [](const Species &a, const Species &b)
+             { return a.score > b.score; });
+
+        for (int j = 0; j < num_species; j++)
+        {
+            cerr << "Species: " << j << " ";
+            print_species(species[j]);
+        }
+
+        if (i != num_generations - 1)
+            species = new_species;
+    }
+    cerr << "Final species: " << endl;
+    sort(species.begin(), species.end(), [](const Species &a, const Species &b)
+         { return a.score > b.score; });
+
+    print_species(species[0]);
 }
