@@ -1,15 +1,13 @@
+#include <algorithm>
+#include <chrono>
+#include <deque>
 #include <iostream>
+#include <queue>
 #include <string>
 #include <vector>
-#include <algorithm>
-#include <deque>
-#include <chrono>
-#include <queue>
 
 #define UNREACHABLE -1
 #define UNVISITED -1
-#define WON 999999
-#define LOST -999999
 
 using namespace std;
 
@@ -35,10 +33,7 @@ struct Vector2
         return Vector2(x - other.x, y - other.y);
     }
 
-    Vector2 operator-() const
-    {
-        return Vector2(-x, -y);
-    }
+    Vector2 operator-() const { return Vector2(-x, -y); }
 };
 
 enum class Direction
@@ -72,35 +67,38 @@ public:
         return pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
     }
 
-    int get_index(Vector2 pos)
-    {
-        return pos.x + pos.y * width;
-    }
+    int get_index(Vector2 pos) { return pos.x + pos.y * width; }
 
     bool is_blocked(Vector2 pos1, Vector2 pos2)
     {
         // will crash if pos1 or pos2 are outside the grid
-        return blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height + pos2.y * width * width * height] != 0;
+        return blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height +
+                             pos2.y * width * width * height] != 0;
     }
 
     int get_blocked(Vector2 pos1, Vector2 pos2)
     {
         // will crash if pos1 or pos2 are outside the grid
-        return blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height + pos2.y * width * width * height];
+        return blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height +
+                             pos2.y * width * width * height];
     }
 
     void set_blocked(Vector2 pos1, Vector2 pos2, bool blocked)
     {
         // Exploit symmetry
-        blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height + pos2.y * width * width * height] = blocked;
-        blocked_paths[pos2.x + pos2.y * width + pos1.x * width * height + pos1.y * width * width * height] = blocked;
+        blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height +
+                      pos2.y * width * width * height] = blocked;
+        blocked_paths[pos2.x + pos2.y * width + pos1.x * width * height +
+                      pos1.y * width * width * height] = blocked;
     }
 
     void set_blocked(Vector2 pos1, Vector2 pos2, int blocked)
     {
         // Exploit symmetry
-        blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height + pos2.y * width * width * height] = blocked;
-        blocked_paths[pos2.x + pos2.y * width + pos1.x * width * height + pos1.y * width * width * height] = blocked;
+        blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height +
+                      pos2.y * width * width * height] = blocked;
+        blocked_paths[pos2.x + pos2.y * width + pos1.x * width * height +
+                      pos1.y * width * width * height] = blocked;
     }
 
     int get_distance(Vector2 pos, Direction dir)
@@ -146,7 +144,8 @@ public:
 
             Vector2 next = Vector2(current.x, current.y - 1);
             int next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(current, next))
+            if (is_inside(next) && visited[next_index] == UNVISITED &&
+                !is_blocked(current, next))
             {
                 visited[next_index] = next_distance;
                 queue[write_index++] = next;
@@ -154,7 +153,8 @@ public:
 
             next = Vector2(current.x, current.y + 1);
             next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(current, next))
+            if (is_inside(next) && visited[next_index] == UNVISITED &&
+                !is_blocked(current, next))
             {
                 visited[next_index] = next_distance;
                 queue[write_index++] = next;
@@ -162,7 +162,8 @@ public:
 
             next = Vector2(current.x - 1, current.y);
             next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(current, next))
+            if (is_inside(next) && visited[next_index] == UNVISITED &&
+                !is_blocked(current, next))
             {
                 visited[next_index] = next_distance;
                 queue[write_index++] = next;
@@ -170,7 +171,8 @@ public:
 
             next = Vector2(current.x + 1, current.y);
             next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(current, next))
+            if (is_inside(next) && visited[next_index] == UNVISITED &&
+                !is_blocked(current, next))
             {
                 visited[next_index] = next_distance;
                 queue[write_index++] = next;
@@ -191,7 +193,8 @@ public:
 
         Vector2 next = Vector2(pos.x, pos.y - 1);
         int next_index = get_index(next);
-        if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(pos, next))
+        if (is_inside(next) && visited[next_index] == UNVISITED &&
+            !is_blocked(pos, next))
         {
             visited[next_index] = (int)Direction::UP;
             queue[write_index++] = next;
@@ -199,7 +202,8 @@ public:
 
         next = Vector2(pos.x, pos.y + 1);
         next_index = get_index(next);
-        if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(pos, next))
+        if (is_inside(next) && visited[next_index] == UNVISITED &&
+            !is_blocked(pos, next))
         {
             visited[next_index] = (int)Direction::DOWN;
             queue[write_index++] = next;
@@ -207,7 +211,8 @@ public:
 
         next = Vector2(pos.x - 1, pos.y);
         next_index = get_index(next);
-        if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(pos, next))
+        if (is_inside(next) && visited[next_index] == UNVISITED &&
+            !is_blocked(pos, next))
         {
             visited[next_index] = (int)Direction::LEFT;
             queue[write_index++] = next;
@@ -215,7 +220,8 @@ public:
 
         next = Vector2(pos.x + 1, pos.y);
         next_index = get_index(next);
-        if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(pos, next))
+        if (is_inside(next) && visited[next_index] == UNVISITED &&
+            !is_blocked(pos, next))
         {
             visited[next_index] = (int)Direction::RIGHT;
             queue[write_index++] = next;
@@ -260,7 +266,8 @@ public:
 
             Vector2 next = Vector2(current.x, current.y - 1);
             int next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(current, next))
+            if (is_inside(next) && visited[next_index] == UNVISITED &&
+                !is_blocked(current, next))
             {
                 visited[next_index] = parent;
                 queue[write_index++] = next;
@@ -268,7 +275,8 @@ public:
 
             next = Vector2(current.x, current.y + 1);
             next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(current, next))
+            if (is_inside(next) && visited[next_index] == UNVISITED &&
+                !is_blocked(current, next))
             {
                 visited[next_index] = parent;
                 queue[write_index++] = next;
@@ -276,7 +284,8 @@ public:
 
             next = Vector2(current.x - 1, current.y);
             next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(current, next))
+            if (is_inside(next) && visited[next_index] == UNVISITED &&
+                !is_blocked(current, next))
             {
                 visited[next_index] = parent;
                 queue[write_index++] = next;
@@ -284,7 +293,8 @@ public:
 
             next = Vector2(current.x + 1, current.y);
             next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED && !is_blocked(current, next))
+            if (is_inside(next) && visited[next_index] == UNVISITED &&
+                !is_blocked(current, next))
             {
                 visited[next_index] = parent;
                 queue[write_index++] = next;
@@ -316,9 +326,128 @@ struct Wall
     }
 };
 
-struct Move
+enum class BoardState
+{
+    UNDECIDED,
+    WON,
+    LOST,
+    ILLEGAL
+};
+
+int compare_board_states(BoardState state1, BoardState state2)
+{
+    int state1_score = state1 == BoardState::WON ? 1
+                                                 : (state1 == BoardState::LOST ? -1
+                                                                               : 0);
+    int state2_score = state2 == BoardState::WON ? 1
+                                                 : (state2 == BoardState::LOST ? -1
+                                                                               : 0);
+    if (state1_score != state2_score)
+    {
+        if (state1_score > state2_score)
+            return 1;
+        else
+            return -1;
+    }
+    return 0;
+}
+
+struct Score
 {
     int score;
+    int depth;
+    BoardState first_place_state;
+    BoardState second_place_state;
+
+    Score() : Score(0, BoardState::UNDECIDED) {}
+    Score(int score, BoardState state)
+    {
+        this->score = score;
+        this->first_place_state = state;
+        this->second_place_state = state;
+    }
+
+    Score(int score, BoardState first_place_state, BoardState second_place_state)
+    {
+        this->score = score;
+        this->first_place_state = first_place_state;
+        this->second_place_state = second_place_state;
+    }
+
+    bool operator<(const Score &other) const
+    {
+        int first_state_compare = compare_board_states(first_place_state,
+                                                       other.first_place_state);
+
+        if (first_state_compare != 0)
+            return first_state_compare < 0;
+
+        if (first_place_state != BoardState::WON)
+        {
+            int second_state_compare = compare_board_states(second_place_state,
+                                                            other.second_place_state);
+
+            if (second_state_compare != 0)
+                return second_state_compare < 0;
+        }
+
+        return score < other.score;
+    }
+
+    bool operator>(const Score &other) const
+    {
+        int first_state_compare = compare_board_states(first_place_state,
+                                                       other.first_place_state);
+
+        if (first_state_compare != 0)
+            return first_state_compare > 0;
+
+        if (first_place_state != BoardState::WON)
+        {
+            int second_state_compare = compare_board_states(second_place_state,
+                                                            other.second_place_state);
+
+            if (second_state_compare != 0)
+                return second_state_compare > 0;
+        }
+
+        return score > other.score;
+    }
+
+    bool operator==(const Score &other) const
+    {
+        return score == other.score && first_place_state == other.first_place_state &&
+               second_place_state == other.second_place_state;
+    }
+
+    bool operator<=(const Score &other) const
+    {
+        return *this < other || *this == other;
+    }
+
+    bool operator>=(const Score &other) const
+    {
+        return *this > other || *this == other;
+    }
+};
+
+Score max(Score score1, Score score2)
+{
+    if (score1 > score2)
+        return score1;
+    return score2;
+}
+
+Score min(Score score1, Score score2)
+{
+    if (score1 < score2)
+        return score1;
+    return score2;
+}
+
+struct Move
+{
+    Score score;
     bool is_wall;
     Wall wall;
     int id;
@@ -346,22 +475,19 @@ public:
         this->_size = _size;
         this->moves = new Move[_size];
         this->num_elements = 0;
-        this->max_score = LOST - 1;
+        this->max_score = Score(-999999, BoardState::LOST);
         this->max_index = 0;
     }
 
-    ~MinMovesArray()
-    {
-        delete[] moves;
-    }
+    ~MinMovesArray() { delete[] moves; }
 
-    int size()
-    {
-        return num_elements;
-    }
+    int size() { return num_elements; }
 
     void push(Move move)
     {
+        if (move.score.first_place_state == BoardState::ILLEGAL || move.score.second_place_state == BoardState::ILLEGAL)
+            return;
+
         if (num_elements < _size)
         {
             moves[num_elements++] = move;
@@ -380,13 +506,11 @@ public:
         }
     }
 
-    Move get(int index)
-    {
-        return moves[index];
-    }
+    Move get(int index) { return moves[index]; }
     void sort()
     {
-        std::sort(moves, moves + num_elements, [](const Move &a, const Move &b)
+        std::sort(moves, moves + num_elements,
+                  [](const Move &a, const Move &b)
                   { return a.score < b.score; });
     }
 
@@ -394,12 +518,12 @@ private:
     int _size;
     Move *moves;
     int num_elements;
-    int max_score;
+    Score max_score;
     int max_index;
 
     void update_max()
     {
-        max_score = LOST - 1;
+        max_score = Score(-999999, BoardState::LOST);
         for (int i = 0; i < num_elements; i++)
         {
             if (moves[i].score > max_score)
@@ -419,22 +543,19 @@ public:
         this->_size = _size;
         this->moves = new Move[_size];
         this->num_elements = 0;
-        this->min_score = WON + 1;
+        this->min_score = Score(999999, BoardState::WON);
         this->min_index = 0;
     }
 
-    ~MaxMovesArray()
-    {
-        delete[] moves;
-    }
+    ~MaxMovesArray() { delete[] moves; }
 
-    int size()
-    {
-        return num_elements;
-    }
+    int size() { return num_elements; }
 
     void push(Move move)
     {
+        if (move.score.first_place_state == BoardState::ILLEGAL || move.score.second_place_state == BoardState::ILLEGAL)
+            return;
+
         if (num_elements < _size)
         {
             moves[num_elements++] = move;
@@ -453,14 +574,14 @@ public:
         }
     }
 
-    Move get(int index)
-    {
-        return moves[index];
-    }
+    Move get(int index) { return moves[index]; }
+
+    Move *get_ref(int index) { return &moves[index]; }
 
     void sort()
     {
-        std::sort(moves, moves + num_elements, [](const Move &a, const Move &b)
+        std::sort(moves, moves + num_elements,
+                  [](const Move &a, const Move &b)
                   { return a.score > b.score; });
     }
 
@@ -468,12 +589,12 @@ private:
     int _size;
     Move *moves;
     int num_elements;
-    int min_score;
+    Score min_score;
     int min_index;
 
     void update_min()
     {
-        min_score = WON + 1;
+        min_score = Score(999999, BoardState::WON);
         for (int i = 0; i < _size; i++)
         {
             if (moves[i].score < min_score)
@@ -488,6 +609,7 @@ private:
 struct Player
 {
     bool is_alive;
+    bool is_finished;
     Vector2 pos;
     int walls_left;
     Direction end_direction;
@@ -496,22 +618,10 @@ struct Player
     Player(Direction end_direction)
     {
         this->is_alive = true;
+        this->is_finished = false;
         this->pos = Vector2(0, 0);
         this->walls_left = 0;
         this->end_direction = end_direction;
-    }
-};
-
-struct Score
-{
-    int score;
-    int depth;
-
-    Score() : Score(0, 0) {}
-    Score(int score, int depth)
-    {
-        this->score = score;
-        this->depth = depth;
     }
 };
 
@@ -533,10 +643,7 @@ public:
         if (player_count == 3)
             this->players[2] = Player(Direction::DOWN);
     }
-    ~Board()
-    {
-        delete grid;
-    }
+    ~Board() { delete grid; }
 
     void move_player(int id, Vector2 direction)
     {
@@ -544,7 +651,7 @@ public:
             return;
 
         players[id].pos = players[id].pos + direction;
-        players[id].is_alive = !player_is_at_end(id);
+        players[id].is_finished = player_is_at_end(id);
     }
 
     void update_player(int id, Vector2 pos, int walls_left)
@@ -566,7 +673,9 @@ public:
     {
         for (int i = 0; i < player_count; i++)
         {
-            if (players[i].is_alive && grid->get_distance(players[i].pos, players[i].end_direction) == UNREACHABLE)
+            if (players[i].is_alive &&
+                grid->get_distance(players[i].pos, players[i].end_direction) ==
+                    UNREACHABLE)
                 return false;
         }
 
@@ -615,18 +724,26 @@ public:
         // check if wall overlaps with another wall
         if (wall.horizontal)
         {
-            if (grid->is_blocked(wall.pos, wall.pos + Vector2(0, -1)) || grid->is_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1)))
+            if (grid->is_blocked(wall.pos, wall.pos + Vector2(0, -1)) ||
+                grid->is_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1)))
                 return true;
 
-            if (grid->get_blocked(wall.pos, wall.pos + Vector2(1, 0)) == grid->get_blocked(wall.pos + Vector2(0, -1), wall.pos + Vector2(1, -1)) && grid->is_blocked(wall.pos, wall.pos + Vector2(1, 0)))
+            if (grid->get_blocked(wall.pos, wall.pos + Vector2(1, 0)) ==
+                    grid->get_blocked(wall.pos + Vector2(0, -1),
+                                      wall.pos + Vector2(1, -1)) &&
+                grid->is_blocked(wall.pos, wall.pos + Vector2(1, 0)))
                 return true;
         }
         else
         {
-            if (grid->is_blocked(wall.pos, wall.pos + Vector2(-1, 0)) || grid->is_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1)))
+            if (grid->is_blocked(wall.pos, wall.pos + Vector2(-1, 0)) ||
+                grid->is_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1)))
                 return true;
 
-            if (grid->get_blocked(wall.pos, wall.pos + Vector2(0, 1)) == grid->get_blocked(wall.pos + Vector2(-1, 0), wall.pos + Vector2(-1, 1)) && grid->is_blocked(wall.pos, wall.pos + Vector2(0, 1)))
+            if (grid->get_blocked(wall.pos, wall.pos + Vector2(0, 1)) ==
+                    grid->get_blocked(wall.pos + Vector2(-1, 0),
+                                      wall.pos + Vector2(-1, 1)) &&
+                grid->is_blocked(wall.pos, wall.pos + Vector2(0, 1)))
                 return true;
         }
 
@@ -637,21 +754,24 @@ public:
     {
         if (players[0].is_alive)
         {
-            int distance_1 = abs(wall.pos.x - players[0].pos.x) + abs(wall.pos.y - players[0].pos.y);
+            int distance_1 = abs(wall.pos.x - players[0].pos.x) +
+                             abs(wall.pos.y - players[0].pos.y);
             if (distance_1 <= distance)
                 return true;
         }
 
         if (players[1].is_alive)
         {
-            int distance_2 = abs(wall.pos.x - players[1].pos.x) + abs(wall.pos.y - players[1].pos.y);
+            int distance_2 = abs(wall.pos.x - players[1].pos.x) +
+                             abs(wall.pos.y - players[1].pos.y);
             if (distance_2 <= distance)
                 return true;
         }
 
         if (player_count == 3 && players[2].is_alive)
         {
-            int distance_3 = abs(wall.pos.x - players[2].pos.x) + abs(wall.pos.y - players[2].pos.y);
+            int distance_3 = abs(wall.pos.x - players[2].pos.x) +
+                             abs(wall.pos.y - players[2].pos.y);
             if (distance_3 <= distance)
                 return true;
         }
@@ -690,12 +810,14 @@ public:
         if (wall.horizontal)
         {
             grid->set_blocked(wall.pos, wall.pos + Vector2(0, -1), wall_count);
-            grid->set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1), wall_count);
+            grid->set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1),
+                              wall_count);
         }
         else
         {
             grid->set_blocked(wall.pos, wall.pos + Vector2(-1, 0), wall_count);
-            grid->set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1), wall_count);
+            grid->set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1),
+                              wall_count);
         }
     }
 
@@ -705,12 +827,14 @@ public:
         if (wall.horizontal)
         {
             grid->set_blocked(wall.pos, wall.pos + Vector2(0, -1), false);
-            grid->set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1), false);
+            grid->set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1),
+                              false);
         }
         else
         {
             grid->set_blocked(wall.pos, wall.pos + Vector2(-1, 0), false);
-            grid->set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1), false);
+            grid->set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1),
+                              false);
         }
 
         wall_count--;
@@ -748,60 +872,6 @@ public:
         turn_count--;
     }
 
-    vector<Wall> get_possible_walls()
-    {
-        vector<Wall> walls;
-
-        // Horizontal walls
-        for (int y = 1; y < height; y++)
-        {
-            for (int x = 0; x < width - 1; x++)
-            {
-                Wall wall = Wall(Vector2(x, y), true);
-                if (can_place_wall(wall))
-                    walls.push_back(wall);
-            }
-        }
-
-        // Vertical walls
-        for (int y = 0; y < height - 1; y++)
-        {
-            for (int x = 1; x < width; x++)
-            {
-                Wall wall = Wall(Vector2(x, y), false);
-                if (can_place_wall(wall))
-                    walls.push_back(wall);
-            }
-        }
-
-        return walls;
-    }
-
-    // not used
-    vector<Vector2> get_possible_directions(int id)
-    {
-        vector<Vector2> directions;
-        Vector2 pos = players[id].pos;
-
-        Vector2 up = Vector2(0, -1);
-        if (grid->is_inside(pos + up) && !grid->is_blocked(pos, pos + up))
-            directions.push_back(up);
-
-        Vector2 down = Vector2(0, 1);
-        if (grid->is_inside(pos + down) && !grid->is_blocked(pos, pos + down))
-            directions.push_back(down);
-
-        Vector2 left = Vector2(-1, 0);
-        if (grid->is_inside(pos + left) && !grid->is_blocked(pos, pos + left))
-            directions.push_back(left);
-
-        Vector2 right = Vector2(1, 0);
-        if (grid->is_inside(pos + right) && !grid->is_blocked(pos, pos + right))
-            directions.push_back(right);
-
-        return directions;
-    }
-
     Move get_best_direction(int id)
     {
         Vector2 pos = players[id].pos;
@@ -821,46 +891,15 @@ public:
         return Move(id, Vector2(0, 0));
     }
 
-    vector<Move> get_possible_moves(int my_id, int current_id)
-    {
-        vector<Move> moves;
-        /*
-        // Add possible directions
-        vector<Vector2> directions = get_possible_directions(id);
-        // cerr << "directions: " << directions.size() << endl;
-        for (Vector2 direction : directions)
-            moves.push_back(Move(id, direction));
-        */
-        if (players[current_id].walls_left != 0)
-        {
-
-            // Add possible walls
-            vector<Wall> walls = get_possible_walls();
-            // cerr << "walls: " << walls.size() << endl;
-            for (Wall wall : walls)
-                moves.push_back(Move(current_id, wall));
-        }
-
-        moves.push_back(get_best_direction(current_id));
-        // score each move
-        for (Move &move : moves)
-            move.score = score_move(my_id, move);
-
-        return moves;
-    }
-
     // lost is best
-    MinMovesArray *get_minimizing_moves(int my_id, int current_id, int breadth)
+    MinMovesArray *get_minimizing_moves(int my_id, int current_id, int breadth,
+                                        bool use_walls)
     {
-        if(players[current_id].walls_left==0)
-        {
-            
-        }
-
-
         Move direction = get_best_direction(current_id);
         direction.score = score_move(my_id, direction);
-        if (direction.score == LOST) // || temp_wall_count >= 4)
+        int distance = grid->get_distance(players[current_id].pos,
+                                          players[current_id].end_direction);
+        if (distance <= 1 || (direction.score.first_place_state == BoardState::LOST && direction.score.second_place_state == BoardState::LOST) || !use_walls)
         {
             MinMovesArray *single_move = new MinMovesArray(1);
             single_move->push(direction);
@@ -878,11 +917,11 @@ public:
                 for (int x = 0; x < width - 1; x++)
                 {
                     Wall wall = Wall(Vector2(x, y), true);
-                    if (!is_overlaping(wall) && is_wall_distance(wall, 100)) // 6))
+                    if (!is_overlaping(wall) && is_wall_distance(wall, 3))
                     {
                         Move wall_move = Move(current_id, wall);
                         wall_move.score = score_move(my_id, wall_move);
-                        if (wall_move.score == LOST)
+                        if (wall_move.score.first_place_state == BoardState::LOST && wall_move.score.second_place_state == BoardState::LOST)
                         {
                             MinMovesArray *single_move = new MinMovesArray(1);
                             single_move->push(wall_move);
@@ -900,11 +939,11 @@ public:
                 for (int x = 1; x < width; x++)
                 {
                     Wall wall = Wall(Vector2(x, y), false);
-                    if (!is_overlaping(wall) && is_wall_distance(wall, 100)) // 6))
+                    if (!is_overlaping(wall) && is_wall_distance(wall, 3))
                     {
                         Move wall_move = Move(current_id, wall);
                         wall_move.score = score_move(my_id, wall_move);
-                        if (wall_move.score == LOST)
+                        if (wall_move.score.first_place_state == BoardState::LOST && wall_move.score.second_place_state == BoardState::LOST)
                         {
                             MinMovesArray *single_move = new MinMovesArray(1);
                             single_move->push(wall_move);
@@ -921,12 +960,13 @@ public:
     }
 
     // won is best
-    MaxMovesArray *get_maximizing_moves(int my_id, int current_id, int breadth)
+    MaxMovesArray *get_maximizing_moves(int my_id, int current_id, int breadth,
+                                        bool use_walls)
     {
 
         Move direction = get_best_direction(current_id);
         direction.score = score_move(my_id, direction);
-        if (direction.score == WON) // || temp_wall_count >= 4)
+        if ((direction.score.first_place_state == BoardState::WON && direction.score.second_place_state == BoardState::WON) || !use_walls)
         {
             MaxMovesArray *single_move = new MaxMovesArray(1);
             single_move->push(direction);
@@ -944,11 +984,11 @@ public:
                 for (int x = 0; x < width - 1; x++)
                 {
                     Wall wall = Wall(Vector2(x, y), true);
-                    if (!is_overlaping(wall) && is_wall_distance(wall, 100)) // 6))
+                    if (!is_overlaping(wall) && is_wall_distance(wall, 3))
                     {
                         Move wall_move = Move(current_id, wall);
                         wall_move.score = score_move(my_id, wall_move);
-                        if (wall_move.score == WON)
+                        if (wall_move.score.first_place_state == BoardState::WON && wall_move.score.second_place_state == BoardState::WON)
                         {
                             MaxMovesArray *single_move = new MaxMovesArray(1);
                             single_move->push(wall_move);
@@ -966,11 +1006,11 @@ public:
                 for (int x = 1; x < width; x++)
                 {
                     Wall wall = Wall(Vector2(x, y), false);
-                    if (!is_overlaping(wall) && is_wall_distance(wall, 100)) // 6))
+                    if (!is_overlaping(wall) && is_wall_distance(wall, 3))
                     {
                         Move wall_move = Move(current_id, wall);
                         wall_move.score = score_move(my_id, wall_move);
-                        if (wall_move.score == WON)
+                        if (wall_move.score.first_place_state == BoardState::WON && wall_move.score.second_place_state == BoardState::WON)
                         {
                             MaxMovesArray *single_move = new MaxMovesArray(1);
                             single_move->push(wall_move);
@@ -995,7 +1035,7 @@ public:
     int get_next_id(int id)
     {
         id = (id + 1) % player_count;
-        if (!players[id].is_alive)
+        if (!players[id].is_alive || players[id].is_finished)
             return get_next_id(id);
         return id;
     }
@@ -1008,341 +1048,322 @@ public:
         return num_alive;
     }
 
-    int score_move(int id, Move move)
+    int get_num_playing()
+    {
+        int num_playing = 0;
+        for (int i = 0; i < player_count; i++)
+            if (players[i].is_alive && !players[i].is_finished)
+                num_playing++;
+        return num_playing;
+    }
+
+    int get_id_finished()
+    {
+        for (int i = 0; i < player_count; i++)
+            if (players[i].is_alive && players[i].is_finished)
+                return i;
+        return -1;
+    }
+
+    Score score_move(int id, Move move)
     {
         if (get_num_alive() == 2)
             return score_move_2_players(id, move);
         else
-            return score_move_3_players(id, move);
+        {
+            int finished_id = get_id_finished();
+            if (finished_id != -1)
+            {
+                Score score = score_move_2_players(id, move);
+                score = Score(score.score, BoardState::LOST, score.first_place_state);
+                return score;
+            }
+            else
+                return score_move_3_players(id, move);
+        }
     }
 
-    int score_move_2_players(int id, Move move)
+    Score score_move_2_players(int id, Move move)
     {
-        do_move(move);
-        int current_id = get_next_id(move.id);
-
-        int distance = get_distance(id);
-        if (distance == UNREACHABLE)
-        {
-            undo_move(move);
-            return move.id == id ? LOST : WON;
-        }
-
-        if (current_id == id)
-            distance = max(0, distance - 1);
-
-        if (distance == 0)
-        {
-            undo_move(move);
-            return WON;
-        }
-
-        int other_id = get_next_id(id);
-        int other_distance = get_distance(other_id);
-        if (other_distance == UNREACHABLE)
-        {
-            undo_move(move);
-            return move.id == id ? LOST : WON;
-        }
-
-        int walls_left = players[id].walls_left;
-        int other_walls_left = players[other_id].walls_left;
-
-        if (other_walls_left == 0 && distance < other_distance)
-        {
-            undo_move(move);
-            return WON;
-        }
-        else if (walls_left == 0 && distance >= other_distance)
-        {
-            undo_move(move);
-            return LOST;
-        }
-
-        if (other_distance <= 1)
-        {
-            undo_move(move);
-            return LOST;
-        }
-
-        int distance_score = other_distance - distance;
-
-        int wall_score = walls_left - other_walls_left;
-
-        int distance_weight = 2;
-        int wall_weight = 3;
-
-        if (turn_count > 10)
-        {
-            //    distance_weight = 2;
-            //    wall_weight = 1;
-        }
-
-        int score = distance_score * distance_weight + wall_score * wall_weight;
-
-        undo_move(move);
-        return score;
-    }
-
-    int score_move_3_players(int id, Move move)
-    {
-        do_move(move);
         int current_id = get_next_id(move.id);
         int next_id = get_next_id(current_id);
-        int last_id = get_next_id(next_id);
+        do_move(move);
 
         int current_distance = get_distance(current_id);
         if (current_distance == UNREACHABLE)
         {
             undo_move(move);
-            return move.id == id ? LOST : WON;
+            return Score(0, BoardState::ILLEGAL);
         }
 
         int next_distance = get_distance(next_id);
         if (next_distance == UNREACHABLE)
         {
             undo_move(move);
-            return move.id == id ? LOST : WON;
+            return Score(0, BoardState::ILLEGAL);
+        }
+
+        BoardState current_state = BoardState::UNDECIDED;
+        int score = 0;
+
+        int current_walls_left = players[current_id].walls_left;
+        int next_walls_left = players[next_id].walls_left;
+
+        if (current_id == id)
+        {
+            if (current_distance <= 1)
+            {
+                current_state = BoardState::WON;
+            }
+            else if (next_walls_left == 0 && current_distance <= next_distance)
+            {
+                current_state = BoardState::WON;
+            }
+            else if (current_walls_left == 0 && current_distance > next_distance)
+            {
+                current_state = BoardState::LOST;
+            }
+            else if (next_distance == 0)
+            {
+                current_state = BoardState::LOST;
+            }
+
+            int distance_score = next_distance - current_distance;
+            int wall_score = current_walls_left - next_walls_left;
+
+            score = distance_score + wall_score + (current_walls_left == 0 ? -2 : 0);
+        }
+        else if (next_id == id)
+        {
+            if (next_distance == 0)
+            {
+                current_state = BoardState::WON;
+            }
+            else if (current_walls_left == 0 && next_distance < current_distance)
+            {
+                current_state = BoardState::WON;
+            }
+            else if (next_walls_left == 0 && next_distance >= current_distance)
+            {
+                current_state = BoardState::LOST;
+            }
+            else if (current_distance <= 1)
+            {
+                current_state = BoardState::LOST;
+            }
+
+            int distance_score = current_distance - next_distance;
+            int wall_score = next_walls_left - current_walls_left;
+
+            score = distance_score + wall_score + (next_walls_left == 0 ? -2 : 0);
+        }
+        else
+        {
+            cerr << "ERROR" << endl;
+        }
+        undo_move(move);
+        return Score(score, current_state);
+    }
+
+    Score score_move_3_players(int id, Move move)
+    {
+        int current_id = get_next_id(move.id);
+        int next_id = get_next_id(current_id);
+        int last_id = get_next_id(next_id);
+
+        do_move(move);
+
+        BoardState first_place_state = BoardState::UNDECIDED;
+        BoardState second_place_state = BoardState::UNDECIDED;
+        int score = 0;
+        int current_distance = get_distance(current_id);
+        if (current_distance == UNREACHABLE)
+        {
+            undo_move(move);
+            return Score(0, BoardState::ILLEGAL);
+        }
+
+        int next_distance = get_distance(next_id);
+        if (next_distance == UNREACHABLE)
+        {
+            undo_move(move);
+            return Score(0, BoardState::ILLEGAL);
         }
 
         int last_distance = get_distance(last_id);
         if (last_distance == UNREACHABLE)
         {
             undo_move(move);
-            return move.id == id ? LOST : WON;
+            return Score(0, BoardState::ILLEGAL);
         }
 
         int current_walls_left = players[current_id].walls_left;
         int next_walls_left = players[next_id].walls_left;
         int last_walls_left = players[last_id].walls_left;
 
+        int distance_weight = 3;
+        int wall_weight = 4;
         if (id == current_id)
         {
             // I finish next turn
             if (current_distance <= 1)
             {
-                undo_move(move);
-                return WON;
+                first_place_state = BoardState::WON;
             }
 
             // opponents are out of walls and I'm the closest
-            if (next_walls_left == 0 && last_walls_left == 0 && current_distance <= next_distance && current_distance <= last_distance)
+            else if (next_walls_left == 0 && last_walls_left == 0 &&
+                     current_distance <= next_distance &&
+                     current_distance <= last_distance)
             {
-                undo_move(move);
-                return WON;
+                first_place_state = BoardState::WON;
             }
-
-            // everybody is out of walls and I finish last
-            if (current_walls_left == 0 && next_walls_left == 0 && last_walls_left == 0 && current_distance > next_distance && current_distance > last_distance)
+            // one opponent is in goal
+            else if (next_distance == 0)
             {
                 undo_move(move);
-                return LOST;
+                players[next_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[next_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
             }
-
-            // both opponents are in goal
-            if (next_distance == 0 && last_distance == 0)
+            else if (last_distance == 0)
             {
                 undo_move(move);
-                return LOST;
+                players[last_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[last_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
+            }
+            // im out of walls and the next can finish next turn
+            else if (current_walls_left == 0 && next_distance <= 1)
+            {
+                undo_move(move);
+                players[next_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[next_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
+            }
+            // I and the next is out of walls and the last can finish next turn
+            else if (current_walls_left == 0 && next_walls_left == 0 &&
+                     last_distance <= 1)
+            {
+                undo_move(move);
+                players[last_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[last_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
             }
 
             int distance_score = next_distance + last_distance - current_distance * 2;
-            int wall_score = current_walls_left - next_distance - last_walls_left;
+            int wall_score = 2 * current_walls_left - next_distance - last_walls_left;
 
-            int distance_weight = 2;
-            int wall_weight = 2;
-
-            int score = distance_score * distance_weight + wall_score * wall_weight;
-
-            undo_move(move);
-            return score;
+            score = distance_score * distance_weight + wall_score * wall_weight;
         }
         else if (id == next_id)
         {
             // I finish next turn
-            if (next_distance == 0 || (next_distance == 1 && current_distance >= 2 && current_walls_left == 0))
+            if (next_distance == 0 || (next_distance == 1 && current_distance >= 2 &&
+                                       current_walls_left == 0))
             {
-                undo_move(move);
-                return WON;
+                first_place_state = BoardState::WON;
             }
 
             // opponents are out of walls and I'm the closest
-            if (current_walls_left == 0 && last_walls_left == 0 && next_distance < current_distance && next_distance <= last_distance)
+            else if (current_walls_left == 0 && last_walls_left == 0 &&
+                     next_distance < current_distance && next_distance <= last_distance)
             {
-                undo_move(move);
-                return WON;
+                first_place_state = BoardState::WON;
             }
-
-            // everybody is out of walls and I'm not the closest
-            if (current_walls_left == 0 && last_walls_left == 0 && next_walls_left == 0 && next_distance >= current_distance && next_distance > last_distance)
+            // one opponent is in goal
+            else if (current_distance <= 1)
             {
                 undo_move(move);
-                return LOST;
+                players[current_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[current_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
             }
-
-            // both opponents are in goal
-            if (current_distance <= 1 && last_distance == 0)
+            else if (last_distance == 0)
             {
                 undo_move(move);
-                return LOST;
+                players[last_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[last_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
+            }
+            // I and the current is out of walls and the last can finish next turn
+            else if (current_walls_left == 0 && next_walls_left == 0 &&
+                     last_distance <= 1)
+            {
+                undo_move(move);
+                players[last_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[last_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
             }
 
             int distance_score = current_distance + last_distance - next_distance * 2;
-            int wall_score = next_walls_left - current_distance - last_walls_left;
+            int wall_score = 2 * next_walls_left - current_distance - last_walls_left;
 
-            int distance_weight = 2;
-            int wall_weight = 2;
-
-            int score = distance_score * distance_weight + wall_score * wall_weight;
-
-            undo_move(move);
-            return score;
+            score = distance_score * distance_weight + wall_score * wall_weight;
         }
         else if (id == last_id)
         {
 
             // I finish next turn
-            if (last_distance == 0 || (last_distance == 1 && current_distance >= 2 && next_distance >= 2 && current_walls_left == 0 && next_walls_left == 0))
+            if (last_distance == 0 ||
+                (last_distance == 1 && current_distance >= 2 && next_distance >= 2 &&
+                 current_walls_left == 0 && next_walls_left == 0))
             {
-                undo_move(move);
-                return WON;
+                first_place_state = BoardState::WON;
             }
-
-            // Opponents finishes next turn
-            if (current_distance <= 1 && next_distance <= 1)
-            {
-                undo_move(move);
-                return LOST;
-            }
-
             // opponents are out of walls and I'm the closest
-            if (current_walls_left == 0 && next_walls_left == 0 && last_distance < current_distance && last_distance < next_distance)
+            else if (current_walls_left == 0 && next_walls_left == 0 &&
+                     last_distance < current_distance && last_distance < next_distance)
             {
-                undo_move(move);
-                return WON;
+                first_place_state = BoardState::WON;
             }
-
-            // everybody is out of walls and I'm not the closest
-            if (current_walls_left == 0 && next_walls_left == 0 && last_walls_left == 0 && last_distance >= current_distance && last_distance >= next_distance)
+            // Opponents finishes next turn
+            else if (current_distance <= 1)
             {
                 undo_move(move);
-                return LOST;
+                players[current_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[current_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
+            }
+            else if (next_distance <= 1 && current_walls_left == 0)
+            {
+                undo_move(move);
+                players[next_id].is_alive = false;
+                Score score = score_move_2_players(id, move);
+                players[next_id].is_alive = true;
+                return Score(score.score, BoardState::LOST, score.first_place_state);
             }
 
             int distance_score = current_distance + next_distance - last_distance * 2;
-            int wall_score = last_walls_left - current_distance - next_walls_left;
+            int wall_score = 2 * last_walls_left - current_walls_left - next_distance;
 
-            int distance_weight = 2;
-            int wall_weight = 2;
+            score = distance_score * distance_weight + wall_score * wall_weight;
+        }
 
-            int score = distance_score * distance_weight + wall_score * wall_weight;
+        undo_move(move);
+        return Score(score, first_place_state, second_place_state);
+    }
 
-            undo_move(move);
+    Score score_move(int depth, int breadth, Score alpha, Score beta, int id,
+                     Move move)
+    {
+        if (temp_wall_count > 4)
+            depth += 1;
+
+        if (depth == 0 || move.score.first_place_state == BoardState::WON || (move.score.first_place_state == BoardState::LOST && move.score.second_place_state != BoardState::UNDECIDED))
+        {
+            Score score = move.score;
+            score.depth = depth;
             return score;
         }
-
-        undo_move(move);
-        return move.id == id ? LOST : WON;
-    }
-
-    int score_move_3_players_legacy(int id, Move move)
-    {
-        do_move(move);
-        int current_id = get_next_id(move.id);
-
-        int distance = get_distance(id);
-        if (distance == UNREACHABLE)
-        {
-            undo_move(move);
-            return move.id == id ? LOST : WON;
-        }
-        if (current_id == id)
-            distance = max(0, distance - 1);
-
-        if (distance == 0)
-        {
-            undo_move(move);
-            return WON;
-        }
-
-        /*1v2 strategy was based on 1v1 with the following modification :
-– If an opponent is within 2 distance of the arrival, he’s my target
-– If no opponent is within 2 distance of the arrival, my target is the one with the minimal (distance + 3*number of walls left)
-– Evaluation function is modified to take into account both opponents’ distances to arrival with equal weight, and my distance to arrival with double weight.*/
-
-        int next_id = get_next_id(id);
-        int last_id = get_next_id(next_id);
-
-        int other_distance = get_distance(next_id);
-        if (other_distance == UNREACHABLE)
-        {
-            undo_move(move);
-            return move.id == id ? LOST : WON;
-        }
-        int last_distance = get_distance(last_id);
-        if (last_distance == UNREACHABLE)
-        {
-            undo_move(move);
-            return move.id == id ? LOST : WON;
-        }
-
-        int walls_left = players[id].walls_left;
-        int other_walls_left = players[next_id].walls_left;
-        int last_walls_left = players[last_id].walls_left;
-
-        // opponents are out of walls and I'm the closest
-        if (other_walls_left == 0 && last_walls_left == 0 && distance < other_distance && distance < last_distance)
-        {
-            undo_move(move);
-            return WON;
-        }
-
-        // everybody is out of walls and I'm not the closest
-        if (walls_left == 0 && other_walls_left == 0 && last_walls_left == 0 && distance >= other_distance && distance >= last_distance)
-        {
-            undo_move(move);
-            return LOST;
-        }
-
-        // opponents finishes next turn
-        if (other_distance <= 1 && last_distance <= 1)
-        {
-            undo_move(move);
-            return LOST;
-        }
-
-        int distance_score = other_distance + last_distance - distance * 2;
-        int wall_score = walls_left - other_walls_left - last_walls_left;
-
-        int distance_weight = 2;
-        int wall_weight = 2;
-
-        if (turn_count > 3)
-        {
-            // distance_weight = 2;
-            // wall_weight = 0;
-        }
-
-        int score = distance_score * distance_weight + wall_score * wall_weight;
-
-        if (other_distance <= 2)
-        {
-            score -= 1;
-        }
-
-        if (other_distance <= 2)
-        {
-            score -= 1;
-        }
-
-        undo_move(move);
-        return score * 2;
-    }
-
-    Score score_move(int depth, int breadth, int alpha, int beta, int id, Move move)
-    {
-        if (depth == 0 || move.score == WON || move.score == LOST)
-            return Score(move.score, depth);
 
         do_move(move);
 
@@ -1350,19 +1371,20 @@ public:
         bool is_maximizing = id == next_id;
         if (is_maximizing)
         {
-            MaxMovesArray *moves = get_maximizing_moves(id, next_id, breadth);
+            MaxMovesArray *moves =
+                get_maximizing_moves(id, next_id, breadth, temp_wall_count <= 4);
 
-            Score best_score = Score(LOST, -1);
+            Score best_score = Score(-999999, BoardState::LOST);
             for (int i = 0; i < moves->size(); i++)
             {
                 Move new_move = moves->get(i);
                 Score score = score_move(depth - 1, breadth, alpha, beta, id, new_move);
-                if (score.score > best_score.score || (score.score == best_score.score && score.depth > best_score.depth))
+                if (score > best_score)
                 {
                     best_score = score;
 
-                    alpha = max(alpha, best_score.score);
-                    if (beta <= alpha || best_score.score == WON)
+                    alpha = max(alpha, best_score);
+                    if (beta <= alpha || best_score.first_place_state == BoardState::WON)
                         break;
                 }
             }
@@ -1373,19 +1395,20 @@ public:
         }
         else
         {
-            MinMovesArray *moves = get_minimizing_moves(id, next_id, breadth);
+            MinMovesArray *moves =
+                get_minimizing_moves(id, next_id, breadth, temp_wall_count <= 4);
 
-            Score best_score = Score(WON, -1);
+            Score best_score = Score(999999, BoardState::WON);
             for (int i = 0; i < moves->size(); i++)
             {
                 Move new_move = moves->get(i);
 
                 Score score = score_move(depth - 1, breadth, alpha, beta, id, new_move);
-                if (score.score < best_score.score || (score.score == best_score.score && score.depth > best_score.depth))
+                if (score < best_score)
                 {
                     best_score = score;
-                    beta = min(beta, best_score.score);
-                    if (beta <= alpha || best_score.score == LOST)
+                    beta = min(beta, best_score);
+                    if (beta <= alpha || (best_score.first_place_state == BoardState::LOST && best_score.second_place_state == BoardState::LOST))
                         break;
                 }
             }
@@ -1396,35 +1419,58 @@ public:
         }
 
         undo_move(move);
-        return Score(score_move(id, move), depth);
+        return Score(0, BoardState::ILLEGAL);
     }
 
-    Move get_best_move(int depth, int breadth, int id)
+    Move get_best_move(int depth, int breadth, int time_micro, int id)
     {
-        temp_wall_count = 0;
-        MaxMovesArray *moves = get_maximizing_moves(id, id, breadth + 1);
+        auto start_time = chrono::high_resolution_clock::now();
 
-        Score best_score = Score(LOST, -1);
+        temp_wall_count = 0;
+        MaxMovesArray *moves = get_maximizing_moves(id, id, 20, true);
+        Score best_score = Score(-999999, BoardState::LOST);
         Move best_move = Move(id, Vector2(0, 0));
+
+        Score alpha = Score(-999999, BoardState::LOST);
         for (int i = 0; i < moves->size(); i++)
         {
             Move move = moves->get(i);
-            if (move.score == WON)
+
+            if (move.score.first_place_state == BoardState::WON)
             {
                 delete moves;
                 return move;
             }
-
-            Score score = score_move(depth, breadth, LOST, WON, id, move);
-            if (score.score > best_score.score || (score.score == best_score.score && score.depth > best_score.depth))
+            Score score = score_move(depth, breadth, alpha, Score(999999, BoardState::WON), id, move);
+            move.score = score;
+            // debug_move(move);
+            if (score > best_score)
             {
                 best_score = score;
                 best_move = move;
             }
+
+            alpha = max(alpha, best_score);
+            if (alpha.first_place_state == BoardState::WON)
+                break;
+
+            auto end_time = chrono::high_resolution_clock::now();
+            if (chrono::duration_cast<chrono::microseconds>(end_time - start_time)
+                    .count() > time_micro)
+            {
+                cerr << "Time out: " << chrono::duration_cast<chrono::microseconds>(end_time - start_time).count()
+                     << endl;
+                cerr << "Checked " << (i + 1) << " moves" << endl;
+                break;
+            }
         }
 
         delete moves;
-        best_move.score = best_score.score;
+        best_move.score = best_score;
+
+        // if (best_move.score == LOST)
+        //     return get_best_direction(id);
+
         return best_move;
     }
 
@@ -1432,7 +1478,8 @@ public:
     {
         if (move.is_wall)
         {
-            cout << move.wall.pos.x << " " << move.wall.pos.y << " " << (move.wall.horizontal ? "H" : "V") << endl;
+            cout << move.wall.pos.x << " " << move.wall.pos.y << " "
+                 << (move.wall.horizontal ? "H" : "V") << endl;
         }
         else
         {
@@ -1448,9 +1495,15 @@ public:
             {
                 cout << "ERROR I HAVE LOST" << endl;
 
-                // cout << move.direction.x << " " << move.direction.y << " " << move.is_wall << " " << move.id << " " << move.score << " " << move.wall.horizontal << " " << move.wall.pos.x << " " << move.wall.pos.y << " " << move.is_wall << endl;
-                // write a better message
-                cerr << "Is wall: " << move.is_wall << " Direction: " << move.direction.x << " " << move.direction.y << " Wall: " << move.wall.horizontal << " " << move.wall.pos.x << " " << move.wall.pos.y << " ID: " << move.id << " Score: " << move.score << endl;
+                // cout << move.direction.x << " " << move.direction.y << " " <<
+                // move.is_wall << " " << move.id << " " << move.score << " " <<
+                // move.wall.horizontal << " " << move.wall.pos.x << " " <<
+                // move.wall.pos.y << " " << move.is_wall << endl; write a better
+                // message
+                cerr << "Is wall: " << move.is_wall
+                     << " Direction: " << move.direction.x << " " << move.direction.y
+                     << " Wall: " << move.wall.horizontal << " " << move.wall.pos.x
+                     << " " << move.wall.pos.y << " ID: " << move.id << endl;
             }
         }
     }
@@ -1459,20 +1512,38 @@ public:
     {
         if (move.is_wall)
         {
-            cerr << "Wall move: " << move.wall.pos.x << " " << move.wall.pos.y << " " << (move.wall.horizontal ? "H" : "V") << endl;
+            cerr << "Wall: " << move.wall.pos.x << " " << move.wall.pos.y << " "
+                 << (move.wall.horizontal ? "H" : "V");
         }
         else
         {
-            cerr << "Direction move: ";
             if (move.direction.x == 0 && move.direction.y == -1)
-                cerr << "UP" << endl;
+                cerr << "UP";
             else if (move.direction.x == 0 && move.direction.y == 1)
-                cerr << "DOWN" << endl;
+                cerr << "DOWN";
             else if (move.direction.x == -1 && move.direction.y == 0)
-                cerr << "LEFT" << endl;
+                cerr << "LEFT";
             else if (move.direction.x == 1 && move.direction.y == 0)
-                cerr << "RIGHT" << endl;
+                cerr << "RIGHT";
         }
+
+        cerr << " ID: " << move.id << " Score: ";
+
+        if (move.score.first_place_state == BoardState::WON)
+            cerr << "WON ";
+        else if (move.score.first_place_state == BoardState::UNDECIDED)
+            cerr << "UNDECIDED ";
+        else if (move.score.first_place_state == BoardState::LOST)
+            cerr << "LOST ";
+
+        if (move.score.second_place_state == BoardState::WON)
+            cerr << "WON ";
+        else if (move.score.second_place_state == BoardState::UNDECIDED)
+            cerr << "UNDECIDED ";
+        else if (move.score.second_place_state == BoardState::LOST)
+            cerr << "LOST ";
+
+        cerr << move.score.score << endl;
     }
 
     void print_board()
@@ -1484,7 +1555,8 @@ public:
             for (int x = 0; x < width; x++)
             {
                 cerr << " ";
-                if (grid->is_inside(Vector2(x, y - 1)) && grid->is_blocked(Vector2(x, y), Vector2(x, y - 1)))
+                if (grid->is_inside(Vector2(x, y - 1)) &&
+                    grid->is_blocked(Vector2(x, y), Vector2(x, y - 1)))
                     cerr << "---";
                 else
                     cerr << "   ";
@@ -1492,7 +1564,8 @@ public:
             cerr << endl;
             for (int x = 0; x < width; x++)
             {
-                if (grid->is_inside(Vector2(x - 1, y)) && grid->is_blocked(Vector2(x, y), Vector2(x - 1, y)))
+                if (grid->is_inside(Vector2(x - 1, y)) &&
+                    grid->is_blocked(Vector2(x, y), Vector2(x - 1, y)))
                     cerr << "|";
                 else
                     cerr << " ";
@@ -1500,7 +1573,8 @@ public:
                     cerr << " 0 ";
                 else if (players[1].pos.x == x && players[1].pos.y == y)
                     cerr << " 1 ";
-                else if (player_count == 3 && players[2].pos.x == x && players[2].pos.y == y)
+                else if (player_count == 3 && players[2].pos.x == x &&
+                         players[2].pos.y == y)
                     cerr << " 2 ";
                 else
                     cerr << "   ";
@@ -1519,6 +1593,7 @@ private:
     int wall_count;
 
     int temp_wall_count;
+    int data[4] = {1, 1, 1, 1};
 };
 
 void coding_game_main()
@@ -1561,77 +1636,19 @@ void coding_game_main()
         // Write an action using cout. DON'T FORGET THE "<< endl"
         // To debug: cerr << "Debug messages..." << endl;
 
-        // action: LEFT, RIGHT, UP, DOWN or "putX putY putOrientation" to place a wall
-        Move move = board.get_best_move(player_count == 2 ? 6 : 5, 2, my_id);
+        // action: LEFT, RIGHT, UP, DOWN or "putX putY putOrientation" to place a
+        // wall
+        // 0,08 sec
+        int micros = 90000;
+
+        Move move = board.get_num_alive() == 2
+                        ? board.get_best_move(8, 2, micros, my_id)
+                        : board.get_best_move(6, 2, micros, my_id);
+        cerr << board.get_num_alive() << endl;
         // board.print_board();
         // cerr << "Move: " << move.score << endl;
         board.print_move(move);
     }
 }
 
-void test_main()
-{
-    // time in seconds
-    clock_t start = clock();
-
-    Board board = Board(9, 9, 2);
-    board.update_player(0, Vector2(0, 0), 10);
-    board.update_player(1, Vector2(8, 8), 10);
-
-    int depth_player_0 = 10;
-    int breadth_player_0 = 10;
-
-    int depth_player_1 = 6;
-    int breadth_player_1 = 5;
-
-    int id = 0;
-
-    while (!board.is_finished())
-    {
-        cout << "It's player " << id << "'s turn, he is " << board.get_distance(id) << " away from the goal and the move is: " << endl;
-        Move move = board.get_best_move(id == 0 ? depth_player_0 : depth_player_1, id == 0 ? breadth_player_0 : breadth_player_1, id);
-        cout << "Move: " << move.score << endl;
-        board.print_move(move);
-        board.do_move(move);
-
-        board.print_board();
-
-        id = board.get_next_id(id);
-    }
-
-    cout << "Player " << id << " has won!" << endl;
-
-    clock_t end = clock();
-    double elapsed_secs = double(end - start) / CLOCKS_PER_SEC;
-    cout << "Time: " << elapsed_secs << endl;
-}
-
-void human_vs_machine_main()
-{
-    Board board = Board(9, 9, 2);
-    board.update_player(0, Vector2(0, 0), 10);
-    board.update_player(1, Vector2(8, 8), 10);
-}
-
-void find_best_start_moves()
-{
-    for (int i = 0; i < 9; i++)
-    {
-        for (int j = 0; j < 9; j++)
-        {
-            Board board = Board(9, 9, 2);
-            board.update_player(0, Vector2(0, i), 10);
-            board.update_player(1, Vector2(8, j), 10);
-            Move move = board.get_best_move(8, 10, 0);
-            cerr << i << " " << j << " " << move.score << endl;
-            board.debug_move(move);
-        }
-    }
-}
-
-int main()
-{
-    // coding_game_main();
-    // test_main();
-    find_best_start_moves();
-}
+int main() { coding_game_main(); }
