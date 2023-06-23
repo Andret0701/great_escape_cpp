@@ -5,6 +5,7 @@
         "xutility": "cpp",
         "queue": "cpp",
         "vector": "cpp",
-        "cstdlib": "cpp"
+        "cstdlib": "cpp",
+        "algorithm": "cpp"
     }
 }
