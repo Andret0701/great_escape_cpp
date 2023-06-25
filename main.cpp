@@ -44,18 +44,47 @@ enum class Direction
     RIGHT
 };
 
-class Grid
+struct Wall
+{
+    Vector2 pos;
+    bool horizontal;
+    Wall() : Wall(Vector2(0, 0), true) {}
+    Wall(Vector2 pos, bool horizontal)
+    {
+        this->pos = pos;
+        this->horizontal = horizontal;
+    }
+};
+
+struct PathData
+{
+    int distance;
+    Direction direction;
+    int reachable_tiles;
+    bool is_unblockable;
+
+    PathData() : PathData(UNVISITED, Direction::UP, true) {}
+    PathData(int distance, Direction direction, bool is_unblockable)
+    {
+        this->distance = distance;
+        this->direction = direction;
+        this->reachable_tiles = 0;
+        this->is_unblockable = is_unblockable;
+    }
+};
+
+class WallGrid
 {
 public:
-    Grid(int width, int height)
+    WallGrid(int width, int height)
     {
         this->width = width;
         this->height = height;
         this->blocked_paths = new int[width * height * width * height]{0};
-        this->visited = new int[width * height];
+        this->visited = new PathData[width * height];
         this->queue = new Vector2[width * height];
     }
-    ~Grid()
+    ~WallGrid()
     {
         delete[] blocked_paths;
         delete[] visited;
@@ -71,7 +100,6 @@ public:
 
     bool is_blocked(Vector2 pos1, Vector2 pos2)
     {
-        // will crash if pos1 or pos2 are outside the grid
         return blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height +
                              pos2.y * width * width * height] != 0;
     }
@@ -83,15 +111,256 @@ public:
                              pos2.y * width * width * height];
     }
 
-    void set_blocked(Vector2 pos1, Vector2 pos2, bool blocked)
+    int get_wall_count() { return wall_count; }
+
+    bool is_wall_inside(Wall wall)
     {
-        // Exploit symmetry
-        blocked_paths[pos1.x + pos1.y * width + pos2.x * width * height +
-                      pos2.y * width * width * height] = blocked;
-        blocked_paths[pos2.x + pos2.y * width + pos1.x * width * height +
-                      pos1.y * width * width * height] = blocked;
+        if (wall.horizontal)
+            return wall.pos.x >= 0 && wall.pos.x < width - 1 && wall.pos.y >= 1 && wall.pos.y < height;
+        else
+            return wall.pos.x >= 1 && wall.pos.x < width && wall.pos.y >= 0 && wall.pos.y < height - 1;
     }
 
+    bool is_overlaping(Wall wall)
+    {
+        if (wall.horizontal)
+        {
+            if (is_blocked(wall.pos, wall.pos + Vector2(0, -1)))
+                return true;
+            if (is_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1)))
+                return true;
+        }
+        else
+        {
+            if (is_blocked(wall.pos, wall.pos + Vector2(-1, 0)))
+                return true;
+            if (is_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1)))
+                return true;
+        }
+        return false;
+    }
+
+    void place_wall(Wall wall)
+    {
+        // Check if wall is overlaping
+        if (is_overlaping(wall))
+            return;
+
+        wall_count++;
+
+        // Place wall
+        if (wall.horizontal)
+        {
+            set_blocked(wall.pos, wall.pos + Vector2(0, -1), wall_count);
+            set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1),
+                        wall_count);
+        }
+        else
+        {
+            set_blocked(wall.pos, wall.pos + Vector2(-1, 0), wall_count);
+            set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1),
+                        wall_count);
+        }
+    }
+
+    void remove_wall(Wall wall)
+    {
+        // Place wall
+        if (wall.horizontal)
+        {
+            set_blocked(wall.pos, wall.pos + Vector2(0, -1), 0);
+            set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1),
+                        0);
+        }
+        else
+        {
+            set_blocked(wall.pos, wall.pos + Vector2(-1, 0), 0);
+            set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1),
+                        0);
+        }
+
+        wall_count--;
+    }
+
+    bool is_finished(Vector2 pos, Direction dir)
+    {
+        switch (dir)
+        {
+        case Direction::UP:
+            return pos.y == 0;
+        case Direction::DOWN:
+            return pos.y == height - 1;
+        case Direction::LEFT:
+            return pos.x == 0;
+        case Direction::RIGHT:
+            return pos.x == width - 1;
+        }
+
+        return false;
+    }
+
+    bool is_unblockable(Vector2 from, Vector2 to)
+    {
+        if (from.y == to.y)
+        {
+            if (from.x < to.x)
+            {
+                Wall wall1 = Wall(to, false);
+                if (is_wall_inside(wall1) && !is_overlaping(wall1))
+                    return false;
+                Wall wall2 = Wall(to + Vector2(0, -1), false);
+                if (is_wall_inside(wall2) && !is_overlaping(wall2))
+                    return false;
+            }
+            else
+            {
+                Wall wall1 = Wall(from, false);
+                if (is_wall_inside(wall1) && !is_overlaping(wall1))
+                    return false;
+                Wall wall2 = Wall(from + Vector2(0, -1), false);
+                if (is_wall_inside(wall2) && !is_overlaping(wall2))
+                    return false;
+            }
+        }
+        else
+        {
+            if (from.y < to.y)
+            {
+                Wall wall1 = Wall(to, true);
+                if (is_wall_inside(wall1) && !is_overlaping(wall1))
+                    return false;
+                Wall wall2 = Wall(to + Vector2(-1, 0), true);
+                if (is_wall_inside(wall2) && !is_overlaping(wall2))
+                    return false;
+            }
+            else
+            {
+                Wall wall1 = Wall(from, true);
+                if (is_wall_inside(wall1) && !is_overlaping(wall1))
+                    return false;
+                Wall wall2 = Wall(from + Vector2(-1, 0), true);
+                if (is_wall_inside(wall2) && !is_overlaping(wall2))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    PathData get_path_data(Vector2 pos, Direction dir)
+    {
+        if (!is_inside(pos))
+            return PathData(UNREACHABLE, dir, true);
+        if (is_finished(pos, dir))
+            return PathData(0, dir, true);
+
+        write_index = 0;
+        read_index = 0;
+
+        fill_n(visited, width * height, PathData());
+
+        visited[get_index(pos)] = PathData(0, dir, true);
+
+        Vector2 next = Vector2(pos.x, pos.y - 1);
+        int next_index = get_index(next);
+        if (is_inside(next) && visited[next_index].distance == UNVISITED &&
+            !is_blocked(pos, next))
+        {
+            visited[next_index] = PathData(1, Direction::UP, is_unblockable(pos, next));
+            queue[write_index++] = next;
+        }
+
+        next = Vector2(pos.x, pos.y + 1);
+        next_index = get_index(next);
+        if (is_inside(next) && visited[next_index].distance == UNVISITED &&
+            !is_blocked(pos, next))
+        {
+            visited[next_index] = PathData(1, Direction::DOWN, is_unblockable(pos, next));
+            queue[write_index++] = next;
+        }
+
+        next = Vector2(pos.x - 1, pos.y);
+        next_index = get_index(next);
+        if (is_inside(next) && visited[next_index].distance == UNVISITED &&
+            !is_blocked(pos, next))
+        {
+            visited[next_index] = PathData(1, Direction::LEFT, is_unblockable(pos, next));
+            queue[write_index++] = next;
+        }
+
+        next = Vector2(pos.x + 1, pos.y);
+        next_index = get_index(next);
+        if (is_inside(next) && visited[next_index].distance == UNVISITED &&
+            !is_blocked(pos, next))
+        {
+            visited[next_index] = PathData(1, Direction::RIGHT, is_unblockable(pos, next));
+            queue[write_index++] = next;
+        }
+
+        while (write_index > read_index)
+        {
+            int current_index = get_index(queue[read_index]);
+            Vector2 current = queue[read_index++];
+            PathData current_data = visited[current_index];
+
+            if (is_finished(current, dir))
+                return visited[get_index(current)];
+
+            int next_distance = current_data.distance + 1;
+
+            Vector2 next = Vector2(current.x, current.y - 1);
+            int next_index = get_index(next);
+            if (is_inside(next) && visited[next_index].distance == UNVISITED &&
+                !is_blocked(current, next))
+            {
+                bool unblockable = current_data.is_unblockable ? is_unblockable(current, next) : false;
+                visited[next_index] = PathData(next_distance, current_data.direction, unblockable);
+                queue[write_index++] = next;
+            }
+
+            next = Vector2(current.x, current.y + 1);
+            next_index = get_index(next);
+            if (is_inside(next) && visited[next_index].distance == UNVISITED &&
+                !is_blocked(current, next))
+            {
+                bool unblockable = current_data.is_unblockable ? is_unblockable(current, next) : false;
+                visited[next_index] = PathData(next_distance, current_data.direction, unblockable);
+                queue[write_index++] = next;
+            }
+
+            next = Vector2(current.x - 1, current.y);
+            next_index = get_index(next);
+            if (is_inside(next) && visited[next_index].distance == UNVISITED &&
+                !is_blocked(current, next))
+            {
+                bool unblockable = current_data.is_unblockable ? is_unblockable(current, next) : false;
+                visited[next_index] = PathData(next_distance, current_data.direction, unblockable);
+                queue[write_index++] = next;
+            }
+
+            next = Vector2(current.x + 1, current.y);
+            next_index = get_index(next);
+            if (is_inside(next) && visited[next_index].distance == UNVISITED &&
+                !is_blocked(current, next))
+            {
+                bool unblockable = current_data.is_unblockable ? is_unblockable(current, next) : false;
+                visited[next_index] = PathData(next_distance, current_data.direction, unblockable);
+                queue[write_index++] = next;
+            }
+        }
+
+        return PathData(UNREACHABLE, dir, true);
+    }
+
+private:
+    int width;
+    int height;
+    int *blocked_paths;
+    PathData *visited;
+    Vector2 *queue;
+    int write_index;
+    int read_index;
+
+    int wall_count;
     void set_blocked(Vector2 pos1, Vector2 pos2, int blocked)
     {
         // Exploit symmetry
@@ -99,230 +368,6 @@ public:
                       pos2.y * width * width * height] = blocked;
         blocked_paths[pos2.x + pos2.y * width + pos1.x * width * height +
                       pos1.y * width * width * height] = blocked;
-    }
-
-    int get_distance(Vector2 pos, Direction dir)
-    {
-        if (!is_inside(pos))
-            return UNREACHABLE;
-
-        write_index = 0;
-        read_index = 0;
-
-        fill_n(visited, width * height, UNVISITED);
-
-        visited[get_index(pos)] = 0;
-
-        // queue
-        queue[write_index++] = pos;
-
-        while (write_index > read_index)
-        {
-            Vector2 current = queue[read_index++];
-
-            switch (dir)
-            {
-            case Direction::UP:
-                if (current.y == 0)
-                    return visited[get_index(current)];
-                break;
-            case Direction::DOWN:
-                if (current.y == height - 1)
-                    return visited[get_index(current)];
-                break;
-            case Direction::LEFT:
-                if (current.x == 0)
-                    return visited[get_index(current)];
-                break;
-            case Direction::RIGHT:
-                if (current.x == width - 1)
-                    return visited[get_index(current)];
-                break;
-            }
-
-            int next_distance = visited[get_index(current)] + 1;
-
-            Vector2 next = Vector2(current.x, current.y - 1);
-            int next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED &&
-                !is_blocked(current, next))
-            {
-                visited[next_index] = next_distance;
-                queue[write_index++] = next;
-            }
-
-            next = Vector2(current.x, current.y + 1);
-            next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED &&
-                !is_blocked(current, next))
-            {
-                visited[next_index] = next_distance;
-                queue[write_index++] = next;
-            }
-
-            next = Vector2(current.x - 1, current.y);
-            next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED &&
-                !is_blocked(current, next))
-            {
-                visited[next_index] = next_distance;
-                queue[write_index++] = next;
-            }
-
-            next = Vector2(current.x + 1, current.y);
-            next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED &&
-                !is_blocked(current, next))
-            {
-                visited[next_index] = next_distance;
-                queue[write_index++] = next;
-            }
-        }
-
-        return UNREACHABLE;
-    }
-
-    Direction get_direction_to(Vector2 pos, Direction dir)
-    {
-        write_index = 0;
-        read_index = 0;
-
-        fill_n(visited, width * height, UNVISITED);
-
-        visited[get_index(pos)] = 0;
-
-        Vector2 next = Vector2(pos.x, pos.y - 1);
-        int next_index = get_index(next);
-        if (is_inside(next) && visited[next_index] == UNVISITED &&
-            !is_blocked(pos, next))
-        {
-            visited[next_index] = (int)Direction::UP;
-            queue[write_index++] = next;
-        }
-
-        next = Vector2(pos.x, pos.y + 1);
-        next_index = get_index(next);
-        if (is_inside(next) && visited[next_index] == UNVISITED &&
-            !is_blocked(pos, next))
-        {
-            visited[next_index] = (int)Direction::DOWN;
-            queue[write_index++] = next;
-        }
-
-        next = Vector2(pos.x - 1, pos.y);
-        next_index = get_index(next);
-        if (is_inside(next) && visited[next_index] == UNVISITED &&
-            !is_blocked(pos, next))
-        {
-            visited[next_index] = (int)Direction::LEFT;
-            queue[write_index++] = next;
-        }
-
-        next = Vector2(pos.x + 1, pos.y);
-        next_index = get_index(next);
-        if (is_inside(next) && visited[next_index] == UNVISITED &&
-            !is_blocked(pos, next))
-        {
-            visited[next_index] = (int)Direction::RIGHT;
-            queue[write_index++] = next;
-        }
-
-        while (write_index > read_index)
-        {
-            Vector2 current = queue[read_index++];
-            int parent = visited[get_index(current)];
-
-            switch (dir)
-            {
-            case Direction::UP:
-                if (current.y == 0)
-                {
-                    int value = visited[get_index(current)];
-                    return (Direction)value;
-                }
-                break;
-            case Direction::DOWN:
-                if (current.y == height - 1)
-                {
-                    int value = visited[get_index(current)];
-                    return (Direction)value;
-                }
-                break;
-            case Direction::LEFT:
-                if (current.x == 0)
-                {
-                    int value = visited[get_index(current)];
-                    return (Direction)value;
-                }
-                break;
-            case Direction::RIGHT:
-                if (current.x == width - 1)
-                {
-                    int value = visited[get_index(current)];
-                    return (Direction)value;
-                }
-                break;
-            }
-
-            Vector2 next = Vector2(current.x, current.y - 1);
-            int next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED &&
-                !is_blocked(current, next))
-            {
-                visited[next_index] = parent;
-                queue[write_index++] = next;
-            }
-
-            next = Vector2(current.x, current.y + 1);
-            next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED &&
-                !is_blocked(current, next))
-            {
-                visited[next_index] = parent;
-                queue[write_index++] = next;
-            }
-
-            next = Vector2(current.x - 1, current.y);
-            next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED &&
-                !is_blocked(current, next))
-            {
-                visited[next_index] = parent;
-                queue[write_index++] = next;
-            }
-
-            next = Vector2(current.x + 1, current.y);
-            next_index = get_index(next);
-            if (is_inside(next) && visited[next_index] == UNVISITED &&
-                !is_blocked(current, next))
-            {
-                visited[next_index] = parent;
-                queue[write_index++] = next;
-            }
-        }
-
-        return dir;
-    }
-
-private:
-    int width;
-    int height;
-    int *blocked_paths;
-    int *visited;
-    Vector2 *queue;
-    int write_index;
-    int read_index;
-};
-
-struct Wall
-{
-    Vector2 pos;
-    bool horizontal;
-    Wall() : Wall(Vector2(0, 0), true) {}
-    Wall(Vector2 pos, bool horizontal)
-    {
-        this->pos = pos;
-        this->horizontal = horizontal;
     }
 };
 
@@ -633,7 +678,7 @@ public:
 
         this->width = width;
         this->height = height;
-        this->grid = new Grid(width, height);
+        this->grid = new WallGrid(width, height);
 
         player_count = clamp(player_count, 2, 3);
         this->player_count = player_count;
@@ -674,7 +719,7 @@ public:
         for (int i = 0; i < player_count; i++)
         {
             if (players[i].is_alive &&
-                grid->get_distance(players[i].pos, players[i].end_direction) ==
+                grid->get_path_data(players[i].pos, players[i].end_direction).distance ==
                     UNREACHABLE)
                 return false;
         }
@@ -787,7 +832,7 @@ public:
 
         // Make sure there is a path for each player
 
-        if (wall_count != 0)
+        if (grid->get_wall_count() != 0)
         {
             place_wall(wall);
             bool allowed = can_finish();
@@ -800,44 +845,12 @@ public:
 
     void place_wall(Wall wall)
     {
-        // Check if wall is overlaping
-        if (is_overlaping(wall))
-            return;
-
-        wall_count++;
-
-        // Place wall
-        if (wall.horizontal)
-        {
-            grid->set_blocked(wall.pos, wall.pos + Vector2(0, -1), wall_count);
-            grid->set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1),
-                              wall_count);
-        }
-        else
-        {
-            grid->set_blocked(wall.pos, wall.pos + Vector2(-1, 0), wall_count);
-            grid->set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1),
-                              wall_count);
-        }
+        grid->place_wall(wall);
     }
 
     void remove_wall(Wall wall)
     {
-        // Place wall
-        if (wall.horizontal)
-        {
-            grid->set_blocked(wall.pos, wall.pos + Vector2(0, -1), false);
-            grid->set_blocked(wall.pos + Vector2(1, 0), wall.pos + Vector2(1, -1),
-                              false);
-        }
-        else
-        {
-            grid->set_blocked(wall.pos, wall.pos + Vector2(-1, 0), false);
-            grid->set_blocked(wall.pos + Vector2(0, 1), wall.pos + Vector2(-1, 1),
-                              false);
-        }
-
-        wall_count--;
+        grid->remove_wall(wall);
     }
 
     void do_move(Move move)
@@ -875,7 +888,7 @@ public:
     Move get_best_direction(int id)
     {
         Vector2 pos = players[id].pos;
-        Direction dir = grid->get_direction_to(pos, players[id].end_direction);
+        Direction dir = grid->get_path_data(pos, players[id].end_direction).direction;
         switch (dir)
         {
         case Direction::UP:
@@ -897,8 +910,9 @@ public:
     {
         Move direction = get_best_direction(current_id);
         direction.score = score_move(my_id, direction);
-        int distance = grid->get_distance(players[current_id].pos,
-                                          players[current_id].end_direction);
+        int distance = grid->get_path_data(players[current_id].pos,
+                                           players[current_id].end_direction)
+                           .distance;
         if (distance <= 1 || (direction.score.first_place_state == BoardState::LOST && direction.score.second_place_state == BoardState::LOST) || !use_walls)
         {
             MinMovesArray *single_move = new MinMovesArray(1);
@@ -1029,7 +1043,12 @@ public:
 
     int get_distance(int id)
     {
-        return grid->get_distance(players[id].pos, players[id].end_direction);
+        return grid->get_path_data(players[id].pos, players[id].end_direction).distance;
+    }
+
+    PathData get_path_data(int id)
+    {
+        return grid->get_path_data(players[id].pos, players[id].end_direction);
     }
 
     int get_next_id(int id)
@@ -1079,7 +1098,7 @@ public:
                 return score;
             }
             else
-                return score_move_3_players(id, move);
+                return score_move_3_players_old(id, move);
         }
     }
 
@@ -1089,15 +1108,15 @@ public:
         int next_id = get_next_id(current_id);
         do_move(move);
 
-        int current_distance = get_distance(current_id);
-        if (current_distance == UNREACHABLE)
+        PathData current_path_data = get_path_data(current_id);
+        if (current_path_data.distance == UNREACHABLE)
         {
             undo_move(move);
             return Score(0, BoardState::ILLEGAL);
         }
 
-        int next_distance = get_distance(next_id);
-        if (next_distance == UNREACHABLE)
+        PathData next_path_data = get_path_data(next_id);
+        if (next_path_data.distance == UNREACHABLE)
         {
             undo_move(move);
             return Score(0, BoardState::ILLEGAL);
@@ -1111,48 +1130,48 @@ public:
 
         if (current_id == id)
         {
-            if (current_distance <= 1)
+            if (current_path_data.distance <= 1)
             {
                 current_state = BoardState::WON;
             }
-            else if (next_walls_left == 0 && current_distance <= next_distance)
+            else if ((next_walls_left == 0 || current_path_data.is_unblockable) && current_path_data.distance <= next_path_data.distance)
             {
                 current_state = BoardState::WON;
             }
-            else if (current_walls_left == 0 && current_distance > next_distance)
+            else if ((current_walls_left == 0 || next_path_data.is_unblockable) && current_path_data.distance > next_path_data.distance)
             {
                 current_state = BoardState::LOST;
             }
-            else if (next_distance == 0)
+            else if (next_path_data.distance == 0)
             {
                 current_state = BoardState::LOST;
             }
 
-            int distance_score = next_distance - current_distance;
+            int distance_score = next_path_data.distance - current_path_data.distance;
             int wall_score = current_walls_left - next_walls_left;
 
             score = distance_score + wall_score + (current_walls_left == 0 ? -2 : 0);
         }
         else if (next_id == id)
         {
-            if (next_distance == 0)
+            if (next_path_data.distance == 0)
             {
                 current_state = BoardState::WON;
             }
-            else if (current_walls_left == 0 && next_distance < current_distance)
+            else if ((current_walls_left == 0 || next_path_data.is_unblockable) && next_path_data.distance < current_path_data.distance)
             {
                 current_state = BoardState::WON;
             }
-            else if (next_walls_left == 0 && next_distance >= current_distance)
+            else if ((next_walls_left == 0 || current_path_data.is_unblockable) && next_path_data.distance >= current_path_data.distance)
             {
                 current_state = BoardState::LOST;
             }
-            else if (current_distance <= 1)
+            else if (current_path_data.distance <= 1)
             {
                 current_state = BoardState::LOST;
             }
 
-            int distance_score = current_distance - next_distance;
+            int distance_score = current_path_data.distance - next_path_data.distance;
             int wall_score = next_walls_left - current_walls_left;
 
             score = distance_score + wall_score + (next_walls_left == 0 ? -2 : 0);
@@ -1173,25 +1192,169 @@ public:
 
         do_move(move);
 
+        PathData current_path_data = get_path_data(current_id);
+        if (current_path_data.distance == UNREACHABLE)
+        {
+            undo_move(move);
+            return Score(0, BoardState::ILLEGAL);
+        }
+
+        PathData next_path_data = get_path_data(next_id);
+        if (next_path_data.distance == UNREACHABLE)
+        {
+            undo_move(move);
+            return Score(0, BoardState::ILLEGAL);
+        }
+
+        PathData last_path_data = get_path_data(last_id);
+        if (last_path_data.distance == UNREACHABLE)
+        {
+            undo_move(move);
+            return Score(0, BoardState::ILLEGAL);
+        }
+
+        int current_walls_left = players[current_id].walls_left;
+        int next_walls_left = players[next_id].walls_left;
+        int last_walls_left = players[last_id].walls_left;
+
+        int winner_id = -1;
+
+        // Current is finished or finishes this turn
+        if (current_path_data.distance <= 0)
+            winner_id = current_id;
+        // Next is finished or finishes next turn
+        else if (next_path_data.distance == 0 || (next_path_data.distance == 1 && current_walls_left == 0))
+            winner_id = next_id;
+        // Last is finished
+        else if (last_path_data.distance == 0)
+            winner_id = last_id;
+        // Opponents are out of walls and Current is the closest
+        else if (next_walls_left == 0 && last_walls_left == 0 &&
+                 current_path_data.distance <= next_path_data.distance &&
+                 current_path_data.distance <= last_path_data.distance)
+            winner_id = current_id;
+        // Opponents are out of walls and Next is the closest
+        else if (current_walls_left == 0 && last_walls_left == 0 &&
+                 next_path_data.distance < current_path_data.distance &&
+                 next_path_data.distance <= last_path_data.distance)
+            winner_id = next_id;
+        // Opponents are out of walls and Last is the closest
+        else if (current_walls_left == 0 && next_walls_left == 0 &&
+                 last_path_data.distance < current_path_data.distance &&
+                 last_path_data.distance < next_path_data.distance)
+            winner_id = last_id;
+        // Current is closest and has unblockable path
+        else if (current_path_data.is_unblockable &&
+                 current_path_data.distance <= next_path_data.distance &&
+                 current_path_data.distance <= last_path_data.distance)
+            winner_id = current_id;
+        // Next is closest and has unblockable path
+        else if (next_path_data.is_unblockable &&
+                 next_path_data.distance < current_path_data.distance &&
+                 next_path_data.distance <= last_path_data.distance)
+            winner_id = next_id;
+        // Last is closest and has unblockable path
+        else if (last_path_data.is_unblockable &&
+                 last_path_data.distance < current_path_data.distance &&
+                 last_path_data.distance < next_path_data.distance)
+            winner_id = last_id;
+
+        PathData my_data;
+        PathData opponent1_data;
+        PathData opponent2_data;
+        int my_walls_left;
+        int opponent1_walls_left;
+        int opponent2_walls_left;
+        if (id == current_id)
+        {
+            my_data = current_path_data;
+            opponent1_data = next_path_data;
+            opponent2_data = last_path_data;
+            my_walls_left = current_walls_left;
+            opponent1_walls_left = next_walls_left;
+            opponent2_walls_left = last_walls_left;
+        }
+        else if (id == next_id)
+        {
+            my_data = next_path_data;
+            opponent1_data = current_path_data;
+            opponent2_data = last_path_data;
+            my_walls_left = next_walls_left;
+            opponent1_walls_left = current_walls_left;
+            opponent2_walls_left = last_walls_left;
+        }
+        else if (id == last_id)
+        {
+            my_data = last_path_data;
+            opponent1_data = current_path_data;
+            opponent2_data = next_path_data;
+            my_walls_left = last_walls_left;
+            opponent1_walls_left = current_walls_left;
+            opponent2_walls_left = next_walls_left;
+        }
+
+        int distance_weight = 3;
+        int wall_weight = 4;
+
+        int distance_score = opponent1_data.distance + opponent2_data.distance - my_data.distance * 2;
+        int wall_score = 2 * my_walls_left - opponent1_walls_left - opponent2_walls_left;
+
+        int score = distance_score * distance_weight + wall_score * wall_weight;
+
+        // No winner
+        if (winner_id == -1)
+        {
+            undo_move(move);
+            return Score(score, BoardState::UNDECIDED);
+        }
+
+        // I won
+        if (winner_id == id)
+        {
+            undo_move(move);
+            return Score(score, BoardState::WON);
+        }
+
+        // I lost
+        else
+        {
+            undo_move(move);
+            players[winner_id].is_alive = false;
+            Score score = score_move_2_players(id, move);
+            players[winner_id].is_alive = true;
+            return Score(score.score, BoardState::LOST, score.first_place_state);
+        }
+
+        cerr << "ERROR" << endl;
+        return Score(0, BoardState::ILLEGAL);
+    }
+    Score score_move_3_players_old(int id, Move move)
+    {
+        int current_id = get_next_id(move.id);
+        int next_id = get_next_id(current_id);
+        int last_id = get_next_id(next_id);
+
+        do_move(move);
+
         BoardState first_place_state = BoardState::UNDECIDED;
         BoardState second_place_state = BoardState::UNDECIDED;
         int score = 0;
-        int current_distance = get_distance(current_id);
-        if (current_distance == UNREACHABLE)
+        PathData current_path_data = get_path_data(current_id);
+        if (current_path_data.distance == UNREACHABLE)
         {
             undo_move(move);
             return Score(0, BoardState::ILLEGAL);
         }
 
-        int next_distance = get_distance(next_id);
-        if (next_distance == UNREACHABLE)
+        PathData next_path_data = get_path_data(next_id);
+        if (next_path_data.distance == UNREACHABLE)
         {
             undo_move(move);
             return Score(0, BoardState::ILLEGAL);
         }
 
-        int last_distance = get_distance(last_id);
-        if (last_distance == UNREACHABLE)
+        PathData last_path_data = get_path_data(last_id);
+        if (last_path_data.distance == UNREACHABLE)
         {
             undo_move(move);
             return Score(0, BoardState::ILLEGAL);
@@ -1206,20 +1369,20 @@ public:
         if (id == current_id)
         {
             // I finish next turn
-            if (current_distance <= 1)
+            if (current_path_data.distance <= 1)
             {
                 first_place_state = BoardState::WON;
             }
 
             // opponents are out of walls and I'm the closest
             else if (next_walls_left == 0 && last_walls_left == 0 &&
-                     current_distance <= next_distance &&
-                     current_distance <= last_distance)
+                     current_path_data.distance <= next_path_data.distance &&
+                     current_path_data.distance <= last_path_data.distance)
             {
                 first_place_state = BoardState::WON;
             }
             // one opponent is in goal
-            else if (next_distance == 0)
+            else if (next_path_data.distance == 0)
             {
                 undo_move(move);
                 players[next_id].is_alive = false;
@@ -1227,7 +1390,7 @@ public:
                 players[next_id].is_alive = true;
                 return Score(score.score, BoardState::LOST, score.first_place_state);
             }
-            else if (last_distance == 0)
+            else if (last_path_data.distance == 0)
             {
                 undo_move(move);
                 players[last_id].is_alive = false;
@@ -1236,7 +1399,7 @@ public:
                 return Score(score.score, BoardState::LOST, score.first_place_state);
             }
             // im out of walls and the next can finish next turn
-            else if (current_walls_left == 0 && next_distance <= 1)
+            else if (current_walls_left == 0 && next_path_data.distance <= 1)
             {
                 undo_move(move);
                 players[next_id].is_alive = false;
@@ -1246,7 +1409,7 @@ public:
             }
             // I and the next is out of walls and the last can finish next turn
             else if (current_walls_left == 0 && next_walls_left == 0 &&
-                     last_distance <= 1)
+                     last_path_data.distance <= 1)
             {
                 undo_move(move);
                 players[last_id].is_alive = false;
@@ -1255,28 +1418,28 @@ public:
                 return Score(score.score, BoardState::LOST, score.first_place_state);
             }
 
-            int distance_score = next_distance + last_distance - current_distance * 2;
-            int wall_score = 2 * current_walls_left - next_distance - last_walls_left;
+            int distance_score = next_path_data.distance + last_path_data.distance - current_path_data.distance * 2;
+            int wall_score = 2 * current_walls_left - next_walls_left - last_walls_left;
 
             score = distance_score * distance_weight + wall_score * wall_weight;
         }
         else if (id == next_id)
         {
             // I finish next turn
-            if (next_distance == 0 || (next_distance == 1 && current_distance >= 2 &&
-                                       current_walls_left == 0))
+            if (next_path_data.distance == 0 || (next_path_data.distance == 1 && current_path_data.distance >= 2 &&
+                                                 current_walls_left == 0))
             {
                 first_place_state = BoardState::WON;
             }
 
             // opponents are out of walls and I'm the closest
             else if (current_walls_left == 0 && last_walls_left == 0 &&
-                     next_distance < current_distance && next_distance <= last_distance)
+                     next_path_data.distance < current_path_data.distance && next_path_data.distance <= last_path_data.distance)
             {
                 first_place_state = BoardState::WON;
             }
             // one opponent is in goal
-            else if (current_distance <= 1)
+            else if (current_path_data.distance <= 1)
             {
                 undo_move(move);
                 players[current_id].is_alive = false;
@@ -1284,7 +1447,7 @@ public:
                 players[current_id].is_alive = true;
                 return Score(score.score, BoardState::LOST, score.first_place_state);
             }
-            else if (last_distance == 0)
+            else if (last_path_data.distance == 0)
             {
                 undo_move(move);
                 players[last_id].is_alive = false;
@@ -1294,7 +1457,7 @@ public:
             }
             // I and the current is out of walls and the last can finish next turn
             else if (current_walls_left == 0 && next_walls_left == 0 &&
-                     last_distance <= 1)
+                     last_path_data.distance <= 1)
             {
                 undo_move(move);
                 players[last_id].is_alive = false;
@@ -1303,8 +1466,8 @@ public:
                 return Score(score.score, BoardState::LOST, score.first_place_state);
             }
 
-            int distance_score = current_distance + last_distance - next_distance * 2;
-            int wall_score = 2 * next_walls_left - current_distance - last_walls_left;
+            int distance_score = current_path_data.distance + last_path_data.distance - next_path_data.distance * 2;
+            int wall_score = 2 * next_walls_left - current_walls_left - last_walls_left;
 
             score = distance_score * distance_weight + wall_score * wall_weight;
         }
@@ -1312,20 +1475,20 @@ public:
         {
 
             // I finish next turn
-            if (last_distance == 0 ||
-                (last_distance == 1 && current_distance >= 2 && next_distance >= 2 &&
+            if (last_path_data.distance == 0 ||
+                (last_path_data.distance == 1 && current_path_data.distance >= 2 && next_path_data.distance >= 2 &&
                  current_walls_left == 0 && next_walls_left == 0))
             {
                 first_place_state = BoardState::WON;
             }
             // opponents are out of walls and I'm the closest
             else if (current_walls_left == 0 && next_walls_left == 0 &&
-                     last_distance < current_distance && last_distance < next_distance)
+                     last_path_data.distance < current_path_data.distance && last_path_data.distance < next_path_data.distance)
             {
                 first_place_state = BoardState::WON;
             }
             // Opponents finishes next turn
-            else if (current_distance <= 1)
+            else if (current_path_data.distance <= 1)
             {
                 undo_move(move);
                 players[current_id].is_alive = false;
@@ -1333,7 +1496,7 @@ public:
                 players[current_id].is_alive = true;
                 return Score(score.score, BoardState::LOST, score.first_place_state);
             }
-            else if (next_distance <= 1 && current_walls_left == 0)
+            else if (next_path_data.distance <= 1 && current_walls_left == 0)
             {
                 undo_move(move);
                 players[next_id].is_alive = false;
@@ -1342,8 +1505,8 @@ public:
                 return Score(score.score, BoardState::LOST, score.first_place_state);
             }
 
-            int distance_score = current_distance + next_distance - last_distance * 2;
-            int wall_score = 2 * last_walls_left - current_walls_left - next_distance;
+            int distance_score = current_path_data.distance + next_path_data.distance - last_path_data.distance * 2;
+            int wall_score = 2 * last_walls_left - current_walls_left - next_walls_left;
 
             score = distance_score * distance_weight + wall_score * wall_weight;
         }
@@ -1443,7 +1606,7 @@ public:
             }
             Score score = score_move(depth, breadth, alpha, Score(999999, BoardState::WON), id, move);
             move.score = score;
-            debug_move(move);
+            // debug_move(move);
             if (score > best_score)
             {
                 best_score = score;
@@ -1587,10 +1750,9 @@ private:
     int width;
     int height;
     int player_count;
-    Grid *grid;
+    WallGrid *grid;
     Player *players;
     int turn_count = 0;
-    int wall_count;
 
     int temp_wall_count;
     int data[4] = {1, 1, 1, 1};
